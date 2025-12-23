@@ -1825,7 +1825,7 @@ function checkBypass(reqUrl) {
 exports.checkBypass = checkBypass;
 function isLoopbackAddress(host) {
     const hostLower = host.toLowerCase();
-    return (hostLower === 'localhost' ||
+    return (hostLower === '127.0.0.1' ||
         hostLower.startsWith('127.') ||
         hostLower.startsWith('[::1]') ||
         hostLower.startsWith('[0:0:0:0:0:0:0:1]'));
@@ -20402,10 +20402,10 @@ function isURLPotentiallyTrustworthy (url) {
       return true
     }
 
-    // If localhost or variants, return true
+    // If 127.0.0.1 or variants, return true
     if (/^127(?:\.[0-9]+){0,2}\.[0-9]+$|^\[(?:0*:)*?:?0*1\]$/.test(originAsURL.hostname) ||
-     (originAsURL.hostname === 'localhost' || originAsURL.hostname.includes('localhost.')) ||
-     (originAsURL.hostname.endsWith('.localhost'))) {
+     (originAsURL.hostname === '127.0.0.1' || originAsURL.hostname.includes('127.0.0.1.')) ||
+     (originAsURL.hostname.endsWith('.127.0.0.1'))) {
       return true
     }
 
@@ -23905,7 +23905,7 @@ class MockAgent extends Dispatcher {
 
     // If the origin is not a string create a dummy parent pool and return to user
     if (typeof origin !== 'string') {
-      const dispatcher = this[kFactory]('http://localhost:9999')
+      const dispatcher = this[kFactory]('http://127.0.0.1:9999')
       this[kMockAgentSet](origin, dispatcher)
       return dispatcher
     }
@@ -28312,7 +28312,7 @@ const WHITE = '#FFFFFF';
 function triggerStatCollect() {
     return __awaiter(this, void 0, void 0, function* () {
         logger.debug('Triggering stat collect ...');
-        const response = yield axios_1.default.post(`http://localhost:${STAT_SERVER_PORT}/collect`);
+        const response = yield axios_1.default.post(`http://127.0.0.1:${STAT_SERVER_PORT}/collect`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Triggered stat collect: ${JSON.stringify(response.data)}`);
         }
@@ -28465,7 +28465,7 @@ function getCPUStats() {
         const userLoadX = [];
         const systemLoadX = [];
         logger.debug('Getting CPU stats ...');
-        const response = yield axios_1.default.get(`http://localhost:${STAT_SERVER_PORT}/cpu`);
+        const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/cpu`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got CPU stats: ${JSON.stringify(response.data)}`);
         }
@@ -28487,7 +28487,7 @@ function getMemoryStats() {
         const activeMemoryX = [];
         const availableMemoryX = [];
         logger.debug('Getting memory stats ...');
-        const response = yield axios_1.default.get(`http://localhost:${STAT_SERVER_PORT}/memory`);
+        const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/memory`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got memory stats: ${JSON.stringify(response.data)}`);
         }
@@ -28513,7 +28513,7 @@ function getNetworkStats() {
         const networkReadX = [];
         const networkWriteX = [];
         logger.debug('Getting network stats ...');
-        const response = yield axios_1.default.get(`http://localhost:${STAT_SERVER_PORT}/network`);
+        const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/network`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got network stats: ${JSON.stringify(response.data)}`);
         }
@@ -28535,7 +28535,7 @@ function getDiskStats() {
         const diskReadX = [];
         const diskWriteX = [];
         logger.debug('Getting disk stats ...');
-        const response = yield axios_1.default.get(`http://localhost:${STAT_SERVER_PORT}/disk`);
+        const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/disk`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got disk stats: ${JSON.stringify(response.data)}`);
         }
@@ -28557,7 +28557,7 @@ function getDiskSizeStats() {
         const diskAvailableX = [];
         const diskUsedX = [];
         logger.debug('Getting disk size stats ...');
-        const response = yield axios_1.default.get(`http://localhost:${STAT_SERVER_PORT}/disk_size`);
+        const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/disk_size`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got disk size stats: ${JSON.stringify(response.data)}`);
         }
@@ -33371,7 +33371,7 @@ const httpAdapter = isHttpAdapterSupported && function httpAdapter(config) {
 
     // Parse url
     const fullPath = buildFullPath(config.baseURL, config.url);
-    const parsed = new URL(fullPath, 'http://localhost');
+    const parsed = new URL(fullPath, 'http://127.0.0.1');
     const protocol = parsed.protocol || supportedProtocols[0];
 
     if (protocol === 'data:') {

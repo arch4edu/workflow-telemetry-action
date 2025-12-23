@@ -30,7 +30,7 @@ const WHITE = '#FFFFFF'
 async function triggerStatCollect(): Promise<void> {
   logger.debug('Triggering stat collect ...')
   const response = await axios.post(
-    `http://localhost:${STAT_SERVER_PORT}/collect`
+    `http://127.0.0.1:${STAT_SERVER_PORT}/collect`
   )
   if (logger.isDebugEnabled()) {
     logger.debug(`Triggered stat collect: ${JSON.stringify(response.data)}`)
@@ -220,7 +220,7 @@ async function getCPUStats(): Promise<ProcessedCPUStats> {
   const systemLoadX: ProcessedStats[] = []
 
   logger.debug('Getting CPU stats ...')
-  const response = await axios.get(`http://localhost:${STAT_SERVER_PORT}/cpu`)
+  const response = await axios.get(`http://127.0.0.1:${STAT_SERVER_PORT}/cpu`)
   if (logger.isDebugEnabled()) {
     logger.debug(`Got CPU stats: ${JSON.stringify(response.data)}`)
   }
@@ -246,7 +246,7 @@ async function getMemoryStats(): Promise<ProcessedMemoryStats> {
 
   logger.debug('Getting memory stats ...')
   const response = await axios.get(
-    `http://localhost:${STAT_SERVER_PORT}/memory`
+    `http://127.0.0.1:${STAT_SERVER_PORT}/memory`
   )
   if (logger.isDebugEnabled()) {
     logger.debug(`Got memory stats: ${JSON.stringify(response.data)}`)
@@ -279,7 +279,7 @@ async function getNetworkStats(): Promise<ProcessedNetworkStats> {
 
   logger.debug('Getting network stats ...')
   const response = await axios.get(
-    `http://localhost:${STAT_SERVER_PORT}/network`
+    `http://127.0.0.1:${STAT_SERVER_PORT}/network`
   )
   if (logger.isDebugEnabled()) {
     logger.debug(`Got network stats: ${JSON.stringify(response.data)}`)
@@ -305,7 +305,7 @@ async function getDiskStats(): Promise<ProcessedDiskStats> {
   const diskWriteX: ProcessedStats[] = []
 
   logger.debug('Getting disk stats ...')
-  const response = await axios.get(`http://localhost:${STAT_SERVER_PORT}/disk`)
+  const response = await axios.get(`http://127.0.0.1:${STAT_SERVER_PORT}/disk`)
   if (logger.isDebugEnabled()) {
     logger.debug(`Got disk stats: ${JSON.stringify(response.data)}`)
   }
@@ -331,7 +331,7 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
 
   logger.debug('Getting disk size stats ...')
   const response = await axios.get(
-    `http://localhost:${STAT_SERVER_PORT}/disk_size`
+    `http://127.0.0.1:${STAT_SERVER_PORT}/disk_size`
   )
   if (logger.isDebugEnabled()) {
     logger.debug(`Got disk size stats: ${JSON.stringify(response.data)}`)

@@ -11,7 +11,7 @@ import {
 
 const STATS_FREQ: number =
   parseInt(process.env.WORKFLOW_TELEMETRY_STAT_FREQ || '') || 5000
-const SERVER_HOST: string = 'localhost'
+const SERVER_HOST: string = '127.0.0.1'
 // TODO
 // It is better to find an available/free port automatically and use it.
 // Then the post script (`post.ts`) needs to know the selected port.
