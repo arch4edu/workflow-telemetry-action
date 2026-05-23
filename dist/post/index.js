@@ -38034,19 +38034,7 @@ function wrappy (fn, cb) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateStackedAreaChart = exports.generateLineChart = void 0;
-const CHART_WIDTH = 1000;
-const CHART_HEIGHT = 500;
-const PADDING = { top: 40, right: 40, bottom: 60, left: 80 };
-const PLOT_WIDTH = CHART_WIDTH - PADDING.left - PADDING.right;
-const PLOT_HEIGHT = CHART_HEIGHT - PADDING.top - PADDING.bottom;
-function escapeXml(str) {
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+exports.generateChart = void 0;
 function formatTime(timestamp) {
     const date = new Date(timestamp);
     const h = date.getHours().toString().padStart(2, '0');
@@ -38054,189 +38042,26 @@ function formatTime(timestamp) {
     const s = date.getSeconds().toString().padStart(2, '0');
     return `${h}:${m}:${s}`;
 }
-function computeNiceMax(max) {
-    if (max <= 0)
-        return 1;
-    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
-    const normalized = max / magnitude;
-    let niceNormalized;
-    if (normalized <= 1)
-        niceNormalized = 1;
-    else if (normalized <= 2)
-        niceNormalized = 2;
-    else if (normalized <= 5)
-        niceNormalized = 5;
-    else
-        niceNormalized = 10;
-    return niceNormalized * magnitude;
-}
-function generateTimeTicks(minTime, maxTime, maxTicks = 8) {
-    const range = maxTime - minTime;
-    if (range <= 0)
-        return [minTime];
-    const step = range / maxTicks;
-    const ticks = [];
-    for (let i = 0; i <= maxTicks; i++) {
-        ticks.push(minTime + step * i);
-    }
-    return ticks;
-}
-function generateYTicks(maxY, tickCount = 5) {
-    const step = maxY / tickCount;
-    const ticks = [];
-    for (let i = 0; i <= tickCount; i++) {
-        ticks.push(step * i);
-    }
-    return ticks;
-}
-function scaleX(value, minX, maxX) {
-    if (maxX === minX)
-        return PADDING.left + PLOT_WIDTH / 2;
-    return PADDING.left + ((value - minX) / (maxX - minX)) * PLOT_WIDTH;
-}
-function scaleY(value, maxY) {
-    if (maxY === 0)
-        return PADDING.top + PLOT_HEIGHT;
-    return PADDING.top + PLOT_HEIGHT - (value / maxY) * PLOT_HEIGHT;
-}
-function buildSvgHeader() {
-    const axisColor = '#000000';
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${CHART_WIDTH}" height="${CHART_HEIGHT}" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}">
-<rect width="${CHART_WIDTH}" height="${CHART_HEIGHT}" fill="#ffffff"/>
-<style>
-  .axis-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; fill: ${axisColor}; }
-  .title-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: bold; fill: ${axisColor}; }
-  .legend-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; fill: ${axisColor}; }
-  .grid-line { stroke: ${axisColor}; stroke-opacity: 0.15; stroke-width: 1; }
-</style>`;
-}
-function buildAxes(yLabel, minTime, maxTime, maxY) {
-    const axisColor = '#000000';
-    const lines = [];
-    // Y axis
-    lines.push(`<line x1="${PADDING.left}" y1="${PADDING.top}" x2="${PADDING.left}" y2="${PADDING.top + PLOT_HEIGHT}" stroke="${axisColor}" stroke-width="1"/>`);
-    // X axis
-    lines.push(`<line x1="${PADDING.left}" y1="${PADDING.top + PLOT_HEIGHT}" x2="${PADDING.left + PLOT_WIDTH}" y2="${PADDING.top + PLOT_HEIGHT}" stroke="${axisColor}" stroke-width="1"/>`);
-    // Y label
-    lines.push(`<text x="15" y="${PADDING.top + PLOT_HEIGHT / 2}" class="title-label" text-anchor="middle" transform="rotate(-90, 15, ${PADDING.top + PLOT_HEIGHT / 2})">${escapeXml(yLabel)}</text>`);
-    // X label
-    lines.push(`<text x="${PADDING.left + PLOT_WIDTH / 2}" y="${CHART_HEIGHT - 10}" class="title-label" text-anchor="middle">Time</text>`);
-    // Y ticks
-    const yTicks = generateYTicks(maxY);
-    for (const tick of yTicks) {
-        const y = scaleY(tick, maxY);
-        lines.push(`<line x1="${PADDING.left}" y1="${y}" x2="${PADDING.left + PLOT_WIDTH}" y2="${y}" class="grid-line"/>`);
-        const label = tick >= 1000 ? `${(tick / 1000).toFixed(1)}k` : tick % 1 === 0 ? tick.toString() : tick.toFixed(1);
-        lines.push(`<text x="${PADDING.left - 8}" y="${y + 4}" class="axis-label" text-anchor="end">${label}</text>`);
-    }
-    // X ticks
-    const timeTicks = generateTimeTicks(minTime, maxTime);
-    for (const tick of timeTicks) {
-        const x = scaleX(tick, minTime, maxTime);
-        lines.push(`<text x="${x}" y="${PADDING.top + PLOT_HEIGHT + 20}" class="axis-label" text-anchor="middle">${formatTime(tick)}</text>`);
-    }
-    return lines.join('\n');
-}
-function buildLegend(items) {
-    const lines = [];
-    const startX = PADDING.left + 10;
-    const startY = PADDING.top + 15;
-    let offsetX = 0;
-    for (const item of items) {
-        lines.push(`<rect x="${startX + offsetX}" y="${startY - 8}" width="12" height="12" fill="${item.color}" rx="2"/>`);
-        lines.push(`<text x="${startX + offsetX + 16}" y="${startY + 2}" class="legend-label">${escapeXml(item.label)}</text>`);
-        offsetX += item.label.length * 7 + 30;
-    }
-    return lines.join('\n');
-}
-function pointsToPath(points, minTime, maxTime, maxY) {
-    if (points.length === 0)
-        return '';
-    const parts = [];
-    for (let i = 0; i < points.length; i++) {
-        const x = scaleX(points[i].x, minTime, maxTime);
-        const y = scaleY(points[i].y, maxY);
-        parts.push(`${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`);
-    }
-    return parts.join(' ');
-}
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function generateLineChart(yLabel, line) {
-    const points = line.points;
-    if (points.length === 0) {
-        return { id: generateId(), svg: '' };
+function generateChart(title, yLabel, series) {
+    if (series.length === 0 || series[0].points.length === 0) {
+        return { id: generateId(), mermaid: '' };
     }
-    const minTime = points[0].x;
-    const maxTime = points[points.length - 1].x;
-    const rawMaxY = Math.max(...points.map(p => p.y), 0);
-    const maxY = computeNiceMax(rawMaxY);
-    const pathD = pointsToPath(points, minTime, maxTime, maxY);
-    const svg = [
-        buildSvgHeader(),
-        buildAxes(yLabel, minTime, maxTime, maxY),
-        buildLegend([{ label: line.label, color: line.color }]),
-        `<path d="${pathD}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
-        '</svg>'
-    ].join('\n');
-    return { id: generateId(), svg };
+    const allPoints = series[0].points;
+    const timeLabels = allPoints.map(p => formatTime(p.x));
+    let mermaid = 'xychart-beta\n';
+    mermaid += `    title "${title}"\n`;
+    mermaid += `    x-axis [${timeLabels.join(', ')}]\n`;
+    mermaid += `    y-axis "${yLabel}"\n`;
+    for (const s of series) {
+        const values = s.points.map(p => p.y.toFixed(1));
+        mermaid += `    line "${s.label}" [${values.join(', ')}]\n`;
+    }
+    return { id: generateId(), mermaid };
 }
-exports.generateLineChart = generateLineChart;
-function generateStackedAreaChart(yLabel, areas) {
-    if (areas.length === 0 || areas[0].points.length === 0) {
-        return { id: generateId(), svg: '' };
-    }
-    const allPoints = areas[0].points;
-    const minTime = allPoints[0].x;
-    const maxTime = allPoints[allPoints.length - 1].x;
-    // Compute stacked max
-    let rawMaxY = 0;
-    for (let i = 0; i < allPoints.length; i++) {
-        let sum = 0;
-        for (const area of areas) {
-            if (i < area.points.length) {
-                sum += area.points[i].y;
-            }
-        }
-        rawMaxY = Math.max(rawMaxY, sum);
-    }
-    const maxY = computeNiceMax(rawMaxY);
-    const svgParts = [
-        buildSvgHeader(),
-        buildAxes(yLabel, minTime, maxTime, maxY),
-        buildLegend(areas.map(a => ({ label: a.label, color: a.color })))
-    ];
-    // Build stacked areas from bottom to top
-    // First compute cumulative sums
-    const numPoints = allPoints.length;
-    const cumulative = Array.from({ length: areas.length + 1 }, () => new Array(numPoints).fill(0));
-    for (let areaIdx = 0; areaIdx < areas.length; areaIdx++) {
-        for (let i = 0; i < numPoints; i++) {
-            const val = areaIdx < areas.length && i < areas[areaIdx].points.length
-                ? areas[areaIdx].points[i].y
-                : 0;
-            cumulative[areaIdx + 1][i] = cumulative[areaIdx][i] + val;
-        }
-    }
-    // Draw areas in reverse order (top layers first so bottom layers paint over)
-    for (let areaIdx = areas.length - 1; areaIdx >= 0; areaIdx--) {
-        const topPoints = [];
-        const bottomPoints = [];
-        for (let i = 0; i < numPoints; i++) {
-            const x = scaleX(allPoints[i].x, minTime, maxTime);
-            const yTop = scaleY(cumulative[areaIdx + 1][i], maxY);
-            const yBottom = scaleY(cumulative[areaIdx][i], maxY);
-            topPoints.push(`${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${yTop.toFixed(1)}`);
-            bottomPoints.unshift(`L${x.toFixed(1)},${yBottom.toFixed(1)}`);
-        }
-        const pathD = topPoints.join(' ') + ' ' + bottomPoints.join(' ') + ' Z';
-        svgParts.push(`<path d="${pathD}" fill="${areas[areaIdx].color}" stroke="${areas[areaIdx].color.replace(/99$/, '')}" stroke-width="1" opacity="0.85"/>`);
-    }
-    svgParts.push('</svg>');
-    return { id: generateId(), svg: svgParts.join('\n') };
-}
-exports.generateStackedAreaChart = generateStackedAreaChart;
+exports.generateChart = generateChart;
 
 
 /***/ }),
@@ -38419,8 +38244,11 @@ function reportAll(currentJob, stepTracerContent, statCollectorItems) {
                     if (item.type === 'heading' && item.content) {
                         core.summary.addRaw(item.content + '\n');
                     }
-                    else if (item.type === 'chart' && ((_a = item.chart) === null || _a === void 0 ? void 0 : _a.svg)) {
-                        core.summary.addRaw(item.chart.svg + '\n');
+                    else if (item.type === 'chart' && ((_a = item.chart) === null || _a === void 0 ? void 0 : _a.mermaid)) {
+                        core.summary.addCodeBlock(item.chart.mermaid, 'mermaid');
+                    }
+                    else if (item.type === 'text' && item.content) {
+                        core.summary.addRaw(item.content + '\n');
                     }
                     else if (item.type === 'table' && item.content) {
                         core.summary.addRaw(item.content + '\n');
@@ -38543,99 +38371,46 @@ function reportWorkflowMetrics() {
         const { networkReadX, networkWriteX } = yield getNetworkStats();
         const { diskReadX, diskWriteX } = yield getDiskStats();
         const { diskAvailableX, diskUsedX } = yield getDiskSizeStats();
-        const cpuLoad = userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
-            ? getStackedAreaGraph({
-                label: 'CPU Load (%)',
-                areas: [
-                    {
-                        label: 'User Load',
-                        color: '#e41a1c99',
-                        points: userLoadX
-                    },
-                    {
-                        label: 'System Load',
-                        color: '#ff7f0099',
-                        points: systemLoadX
-                    }
-                ]
+        // CPU: total load = user + system
+        const cpuTotalLoad = userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
+            ? userLoadX.map((u, i) => {
+                var _a;
+                return ({
+                    x: u.x,
+                    y: u.y + (((_a = systemLoadX[i]) === null || _a === void 0 ? void 0 : _a.y) || 0)
+                });
             })
             : null;
-        const memoryUsage = activeMemoryX &&
-            activeMemoryX.length &&
-            availableMemoryX &&
-            availableMemoryX.length
-            ? getStackedAreaGraph({
-                label: 'Memory Usage (MB)',
-                areas: [
-                    {
-                        label: 'Used',
-                        color: '#377eb899',
-                        points: activeMemoryX
-                    },
-                    {
-                        label: 'Free',
-                        color: '#4daf4a99',
-                        points: availableMemoryX
-                    }
-                ]
-            })
+        const cpuLoad = cpuTotalLoad
+            ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
+                { label: 'Total', points: cpuTotalLoad }
+            ])
             : null;
-        const networkIORead = networkReadX && networkReadX.length
-            ? getLineGraph({
-                label: 'Network I/O Read (MB)',
-                line: {
-                    label: 'Read',
-                    color: '#be4d25',
-                    points: networkReadX
-                }
-            })
+        // Memory: used amount only
+        const memoryUsage = activeMemoryX && activeMemoryX.length
+            ? (0, chartGenerator_1.generateChart)('Memory Usage (MB)', 'MB', [
+                { label: 'Used', points: activeMemoryX }
+            ])
             : null;
-        const networkIOWrite = networkWriteX && networkWriteX.length
-            ? getLineGraph({
-                label: 'Network I/O Write (MB)',
-                line: {
-                    label: 'Write',
-                    color: '#6c25be',
-                    points: networkWriteX
-                }
-            })
+        // Network IO: read + write as two lines
+        const networkIO = networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
+            ? (0, chartGenerator_1.generateChart)('Network I/O (MB)', 'MB', [
+                { label: 'Read', points: networkReadX },
+                { label: 'Write', points: networkWriteX }
+            ])
             : null;
-        const diskIORead = diskReadX && diskReadX.length
-            ? getLineGraph({
-                label: 'Disk I/O Read (MB)',
-                line: {
-                    label: 'Read',
-                    color: '#be4d25',
-                    points: diskReadX
-                }
-            })
+        // Disk IO: read + write as two lines
+        const diskIO = diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
+            ? (0, chartGenerator_1.generateChart)('Disk I/O (MB)', 'MB', [
+                { label: 'Read', points: diskReadX },
+                { label: 'Write', points: diskWriteX }
+            ])
             : null;
-        const diskIOWrite = diskWriteX && diskWriteX.length
-            ? getLineGraph({
-                label: 'Disk I/O Write (MB)',
-                line: {
-                    label: 'Write',
-                    color: '#6c25be',
-                    points: diskWriteX
-                }
-            })
-            : null;
-        const diskSizeUsage = diskUsedX && diskUsedX.length && diskAvailableX && diskAvailableX.length
-            ? getStackedAreaGraph({
-                label: 'Disk Usage (MB)',
-                areas: [
-                    {
-                        label: 'Used',
-                        color: '#377eb899',
-                        points: diskUsedX
-                    },
-                    {
-                        label: 'Free',
-                        color: '#4daf4a99',
-                        points: diskAvailableX
-                    }
-                ]
-            })
+        // Disk size: used amount only
+        const diskSizeUsage = diskUsedX && diskUsedX.length
+            ? (0, chartGenerator_1.generateChart)('Disk Usage (MB)', 'MB', [
+                { label: 'Used', points: diskUsedX }
+            ])
             : null;
         const items = [];
         if (cpuLoad) {
@@ -38646,23 +38421,16 @@ function reportWorkflowMetrics() {
             items.push({ type: 'heading', content: '### Memory Metrics' });
             items.push({ type: 'chart', chart: memoryUsage });
         }
-        if ((networkIORead && networkIOWrite) || (diskIORead && diskIOWrite)) {
+        if (networkIO || diskIO) {
             items.push({ type: 'heading', content: '### IO Metrics' });
-            const tableLines = [
-                '|               | Read      | Write     |',
-                '|---            |---        |---        |'
-            ];
-            if (networkIORead && networkIOWrite) {
-                tableLines.push(`| Network I/O   | (read chart)        | (write chart)        |`);
-                items.push({ type: 'chart', chart: networkIORead });
-                items.push({ type: 'chart', chart: networkIOWrite });
+            if (networkIO) {
+                items.push({ type: 'text', content: '**Network I/O**' });
+                items.push({ type: 'chart', chart: networkIO });
             }
-            if (diskIORead && diskIOWrite) {
-                tableLines.push(`| Disk I/O      | (read chart)              | (write chart)              |`);
-                items.push({ type: 'chart', chart: diskIORead });
-                items.push({ type: 'chart', chart: diskIOWrite });
+            if (diskIO) {
+                items.push({ type: 'text', content: '**Disk I/O**' });
+                items.push({ type: 'chart', chart: diskIO });
             }
-            items.push({ type: 'table', content: tableLines.join('\n') });
         }
         if (diskSizeUsage) {
             items.push({ type: 'heading', content: '### Disk Size Metrics' });
@@ -38786,12 +38554,6 @@ function getDiskSizeStats() {
         });
         return { diskAvailableX, diskUsedX };
     });
-}
-function getLineGraph(options) {
-    return (0, chartGenerator_1.generateLineChart)(options.label, options.line);
-}
-function getStackedAreaGraph(options) {
-    return (0, chartGenerator_1.generateStackedAreaChart)(options.label, options.areas);
 }
 ///////////////////////////
 function start() {

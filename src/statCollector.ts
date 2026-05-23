@@ -6,7 +6,6 @@ import {
   CPUStats,
   DiskSizeStats,
   DiskStats,
-  LineGraphOptions,
   MemoryStats,
   NetworkStats,
   ProcessedCPUStats,
@@ -15,11 +14,10 @@ import {
   ProcessedMemoryStats,
   ProcessedNetworkStats,
   ProcessedStats,
-  StackedAreaGraphOptions,
   WorkflowJobType
 } from './interfaces'
 import * as logger from './logger'
-import { generateLineChart, generateStackedAreaChart, ChartResult } from './chartGenerator'
+import { generateChart, ChartResult } from './chartGenerator'
 
 export interface ReportItem {
   type: 'heading' | 'text' | 'chart' | 'table'
@@ -46,112 +44,53 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const { diskReadX, diskWriteX } = await getDiskStats()
   const { diskAvailableX, diskUsedX } = await getDiskSizeStats()
 
-  const cpuLoad =
+  // CPU: total load = user + system
+  const cpuTotalLoad: ProcessedStats[] | null =
     userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
-      ? getStackedAreaGraph({
-          label: 'CPU Load (%)',
-          areas: [
-            {
-              label: 'User Load',
-              color: '#e41a1c99',
-              points: userLoadX
-            },
-            {
-              label: 'System Load',
-              color: '#ff7f0099',
-              points: systemLoadX
-            }
-          ]
-        })
+      ? userLoadX.map((u, i) => ({
+          x: u.x,
+          y: u.y + (systemLoadX[i]?.y || 0)
+        }))
       : null
 
+  const cpuLoad = cpuTotalLoad
+    ? generateChart('CPU Load (%)', 'Percentage', [
+        { label: 'Total', points: cpuTotalLoad }
+      ])
+    : null
+
+  // Memory: used amount only
   const memoryUsage =
-    activeMemoryX &&
-    activeMemoryX.length &&
-    availableMemoryX &&
-    availableMemoryX.length
-      ? getStackedAreaGraph({
-          label: 'Memory Usage (MB)',
-          areas: [
-            {
-              label: 'Used',
-              color: '#377eb899',
-              points: activeMemoryX
-            },
-            {
-              label: 'Free',
-              color: '#4daf4a99',
-              points: availableMemoryX
-            }
-          ]
-        })
+    activeMemoryX && activeMemoryX.length
+      ? generateChart('Memory Usage (MB)', 'MB', [
+          { label: 'Used', points: activeMemoryX }
+        ])
       : null
 
-  const networkIORead =
-    networkReadX && networkReadX.length
-      ? getLineGraph({
-          label: 'Network I/O Read (MB)',
-          line: {
-            label: 'Read',
-            color: '#be4d25',
-            points: networkReadX
-          }
-        })
+  // Network IO: read + write as two lines
+  const networkIO =
+    networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
+      ? generateChart('Network I/O (MB)', 'MB', [
+          { label: 'Read', points: networkReadX },
+          { label: 'Write', points: networkWriteX }
+        ])
       : null
 
-  const networkIOWrite =
-    networkWriteX && networkWriteX.length
-      ? getLineGraph({
-          label: 'Network I/O Write (MB)',
-          line: {
-            label: 'Write',
-            color: '#6c25be',
-            points: networkWriteX
-          }
-        })
+  // Disk IO: read + write as two lines
+  const diskIO =
+    diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
+      ? generateChart('Disk I/O (MB)', 'MB', [
+          { label: 'Read', points: diskReadX },
+          { label: 'Write', points: diskWriteX }
+        ])
       : null
 
-  const diskIORead =
-    diskReadX && diskReadX.length
-      ? getLineGraph({
-          label: 'Disk I/O Read (MB)',
-          line: {
-            label: 'Read',
-            color: '#be4d25',
-            points: diskReadX
-          }
-        })
-      : null
-
-  const diskIOWrite =
-    diskWriteX && diskWriteX.length
-      ? getLineGraph({
-          label: 'Disk I/O Write (MB)',
-          line: {
-            label: 'Write',
-            color: '#6c25be',
-            points: diskWriteX
-          }
-        })
-      : null
-
+  // Disk size: used amount only
   const diskSizeUsage =
-    diskUsedX && diskUsedX.length && diskAvailableX && diskAvailableX.length
-      ? getStackedAreaGraph({
-          label: 'Disk Usage (MB)',
-          areas: [
-            {
-              label: 'Used',
-              color: '#377eb899',
-              points: diskUsedX
-            },
-            {
-              label: 'Free',
-              color: '#4daf4a99',
-              points: diskAvailableX
-            }
-          ]
-        })
+    diskUsedX && diskUsedX.length
+      ? generateChart('Disk Usage (MB)', 'MB', [
+          { label: 'Used', points: diskUsedX }
+        ])
       : null
 
   const items: ReportItem[] = []
@@ -163,27 +102,16 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
     items.push({ type: 'heading', content: '### Memory Metrics' })
     items.push({ type: 'chart', chart: memoryUsage })
   }
-  if ((networkIORead && networkIOWrite) || (diskIORead && diskIOWrite)) {
+  if (networkIO || diskIO) {
     items.push({ type: 'heading', content: '### IO Metrics' })
-    const tableLines: string[] = [
-      '|               | Read      | Write     |',
-      '|---            |---        |---        |'
-    ]
-    if (networkIORead && networkIOWrite) {
-      tableLines.push(
-        `| Network I/O   | (read chart)        | (write chart)        |`
-      )
-      items.push({ type: 'chart', chart: networkIORead })
-      items.push({ type: 'chart', chart: networkIOWrite })
+    if (networkIO) {
+      items.push({ type: 'text', content: '**Network I/O**' })
+      items.push({ type: 'chart', chart: networkIO })
     }
-    if (diskIORead && diskIOWrite) {
-      tableLines.push(
-        `| Disk I/O      | (read chart)              | (write chart)              |`
-      )
-      items.push({ type: 'chart', chart: diskIORead })
-      items.push({ type: 'chart', chart: diskIOWrite })
+    if (diskIO) {
+      items.push({ type: 'text', content: '**Disk I/O**' })
+      items.push({ type: 'chart', chart: diskIO })
     }
-    items.push({ type: 'table', content: tableLines.join('\n') })
   }
   if (diskSizeUsage) {
     items.push({ type: 'heading', content: '### Disk Size Metrics' })
@@ -331,16 +259,6 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
   })
 
   return { diskAvailableX, diskUsedX }
-}
-
-function getLineGraph(options: LineGraphOptions): ChartResult {
-  return generateLineChart(options.label, options.line)
-}
-
-function getStackedAreaGraph(
-  options: StackedAreaGraphOptions
-): ChartResult {
-  return generateStackedAreaChart(options.label, options.areas)
 }
 
 ///////////////////////////
