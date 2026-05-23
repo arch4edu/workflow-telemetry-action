@@ -33,7 +33,7 @@ export function generateChart(
   }
 
   const allPoints = series[0].points
-  const total = allPoints.length
+  const total = Math.min(...series.map(s => s.points.length))
 
   // Downsample to at most 32 evenly-spaced points (including first and last)
   const maxPoints = 32

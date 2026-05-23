@@ -28223,7 +28223,7 @@ function generateChart(title, yLabel, series, options) {
         return { id: generateId(), mermaid: '' };
     }
     const allPoints = series[0].points;
-    const total = allPoints.length;
+    const total = Math.min(...series.map(s => s.points.length));
     // Downsample to at most 32 evenly-spaced points (including first and last)
     const maxPoints = 32;
     let indices;
