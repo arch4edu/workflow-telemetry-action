@@ -19,6 +19,7 @@ export interface ChartResult {
 
 export interface ChartOptions {
   yMax?: number
+  colors?: string[]
 }
 
 export function generateChart(
@@ -63,7 +64,16 @@ export function generateChart(
   // Y-axis with optional fixed range
   const yAxisRange = options?.yMax ? `0 --> ${options.yMax}` : ''
 
-  let mermaid = 'xychart-beta\n'
+  // Color palette via init directive (keeps default theme intact)
+  let initDirective = ''
+  if (options?.colors && options.colors.length > 0) {
+    const palette = options.colors.join(', ')
+    initDirective = `%%{init: {"xyChart": {"plotColorPalette": "${palette}"}}}%%\n`
+  }
+
+  let mermaid = ''
+  if (initDirective) mermaid += initDirective
+  mermaid += 'xychart-beta\n'
   mermaid += `    title "${title}"\n`
   mermaid += `    x-axis [${timeLabels.join(', ')}]\n`
   mermaid += yAxisRange

@@ -28251,7 +28251,16 @@ function generateChart(title, yLabel, series, options) {
     });
     // Y-axis with optional fixed range
     const yAxisRange = (options === null || options === void 0 ? void 0 : options.yMax) ? `0 --> ${options.yMax}` : '';
-    let mermaid = 'xychart-beta\n';
+    // Color palette via init directive (keeps default theme intact)
+    let initDirective = '';
+    if ((options === null || options === void 0 ? void 0 : options.colors) && options.colors.length > 0) {
+        const palette = options.colors.join(', ');
+        initDirective = `%%{init: {"xyChart": {"plotColorPalette": "${palette}"}}}%%\n`;
+    }
+    let mermaid = '';
+    if (initDirective)
+        mermaid += initDirective;
+    mermaid += 'xychart-beta\n';
     mermaid += `    title "${title}"\n`;
     mermaid += `    x-axis [${timeLabels.join(', ')}]\n`;
     mermaid += yAxisRange
@@ -28404,33 +28413,33 @@ function reportWorkflowMetrics() {
         const cpuLoad = cpuTotalLoad
             ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
                 { label: 'Total', points: cpuTotalLoad }
-            ], { yMax: 100 })
+            ], { yMax: 100, colors: ['#ff0000'] })
             : null;
         // Memory: used amount only
         const memoryUsage = activeMemoryX && activeMemoryX.length
             ? (0, chartGenerator_1.generateChart)('Memory Usage (MB)', 'MB', [
                 { label: 'Used', points: activeMemoryX }
-            ])
+            ], { colors: ['#0000ff'] })
             : null;
         // Network IO: read + write as two lines
         const networkIO = networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
             ? (0, chartGenerator_1.generateChart)('Network I/O (MB)', 'MB', [
                 { label: 'Read', points: networkReadX },
                 { label: 'Write', points: networkWriteX }
-            ])
+            ], { colors: ['#ff0000', '#0000ff'] })
             : null;
         // Disk IO: read + write as two lines
         const diskIO = diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
             ? (0, chartGenerator_1.generateChart)('Disk I/O (MB)', 'MB', [
                 { label: 'Read', points: diskReadX },
                 { label: 'Write', points: diskWriteX }
-            ])
+            ], { colors: ['#ff0000', '#0000ff'] })
             : null;
         // Disk size: used amount only
         const diskSizeUsage = diskUsedX && diskUsedX.length
             ? (0, chartGenerator_1.generateChart)('Disk Usage (MB)', 'MB', [
                 { label: 'Used', points: diskUsedX }
-            ])
+            ], { colors: ['#0000ff'] })
             : null;
         const items = [];
         if (cpuLoad) {

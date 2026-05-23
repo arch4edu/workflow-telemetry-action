@@ -56,7 +56,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const cpuLoad = cpuTotalLoad
     ? generateChart('CPU Load (%)', 'Percentage', [
         { label: 'Total', points: cpuTotalLoad }
-      ], { yMax: 100 })
+      ], { yMax: 100, colors: ['#ff0000'] })
     : null
 
   // Memory: used amount only
@@ -64,7 +64,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
     activeMemoryX && activeMemoryX.length
       ? generateChart('Memory Usage (MB)', 'MB', [
           { label: 'Used', points: activeMemoryX }
-        ])
+        ], { colors: ['#0000ff'] })
       : null
 
   // Network IO: read + write as two lines
@@ -73,7 +73,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
       ? generateChart('Network I/O (MB)', 'MB', [
           { label: 'Read', points: networkReadX },
           { label: 'Write', points: networkWriteX }
-        ])
+        ], { colors: ['#ff0000', '#0000ff'] })
       : null
 
   // Disk IO: read + write as two lines
@@ -82,7 +82,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
       ? generateChart('Disk I/O (MB)', 'MB', [
           { label: 'Read', points: diskReadX },
           { label: 'Write', points: diskWriteX }
-        ])
+        ], { colors: ['#ff0000', '#0000ff'] })
       : null
 
   // Disk size: used amount only
@@ -90,7 +90,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
     diskUsedX && diskUsedX.length
       ? generateChart('Disk Usage (MB)', 'MB', [
           { label: 'Used', points: diskUsedX }
-        ])
+        ], { colors: ['#0000ff'] })
       : null
 
   const items: ReportItem[] = []
