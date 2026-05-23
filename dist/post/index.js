@@ -38443,15 +38443,15 @@ function reportWorkflowMetrics() {
         const seriesList = [];
         const colorList = [];
         if (cpuTotalLoad && cpuTotalLoad.length) {
-            seriesList.push({ label: 'CPU', points: cpuTotalLoad });
+            seriesList.push({ label: '🔴 CPU', points: cpuTotalLoad });
             colorList.push('#ff0000');
         }
         if (memoryPercentX && memoryPercentX.length) {
-            seriesList.push({ label: 'Memory', points: memoryPercentX });
+            seriesList.push({ label: '🔵 Memory', points: memoryPercentX });
             colorList.push('#0000ff');
         }
         if (diskPercentX && diskPercentX.length) {
-            seriesList.push({ label: 'Disk', points: diskPercentX });
+            seriesList.push({ label: '🟢 Disk', points: diskPercentX });
             colorList.push('#00aa00');
         }
         const mainChart = seriesList.length > 0
@@ -38461,19 +38461,19 @@ function reportWorkflowMetrics() {
         const ioSeriesList = [];
         const ioColorList = [];
         if (networkReadX && networkReadX.length) {
-            ioSeriesList.push({ label: 'Net Read', points: networkReadX });
+            ioSeriesList.push({ label: '🔴 Net Read', points: networkReadX });
             ioColorList.push('#ff0000');
         }
         if (networkWriteX && networkWriteX.length) {
-            ioSeriesList.push({ label: 'Net Write', points: networkWriteX });
+            ioSeriesList.push({ label: '🔵 Net Write', points: networkWriteX });
             ioColorList.push('#0000ff');
         }
         if (diskReadX && diskReadX.length) {
-            ioSeriesList.push({ label: 'Disk Read', points: diskReadX });
+            ioSeriesList.push({ label: '🟠 Disk Read', points: diskReadX });
             ioColorList.push('#ff8800');
         }
         if (diskWriteX && diskWriteX.length) {
-            ioSeriesList.push({ label: 'Disk Write', points: diskWriteX });
+            ioSeriesList.push({ label: '🟢 Disk Write', points: diskWriteX });
             ioColorList.push('#00aa00');
         }
         const ioChart = ioSeriesList.length > 0
@@ -38486,12 +38486,10 @@ function reportWorkflowMetrics() {
             const totalDiskGb = (totalDiskMb / 1024).toFixed(1);
             items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB** | Total Disk: **${totalDiskGb} GB**` });
             items.push({ type: 'chart', chart: mainChart });
-            items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory &nbsp;&nbsp; 🟢 Disk' });
         }
         if (ioChart) {
             items.push({ type: 'heading', content: '### IO Metrics' });
             items.push({ type: 'chart', chart: ioChart });
-            items.push({ type: 'text', content: '🔴 Net Read &nbsp;&nbsp; 🔵 Net Write &nbsp;&nbsp; 🟠 Disk Read &nbsp;&nbsp; 🟢 Disk Write' });
         }
         return items;
     });
