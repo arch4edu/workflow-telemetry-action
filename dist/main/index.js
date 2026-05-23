@@ -28207,7 +28207,7 @@ exports["default"] = _default;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateChart = void 0;
+exports.mermaidCodeBlock = exports.generateChart = void 0;
 function formatTime(timestamp) {
     const date = new Date(timestamp);
     const h = date.getHours().toString().padStart(2, '0');
@@ -28218,16 +28218,42 @@ function formatTime(timestamp) {
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function generateChart(title, yLabel, series) {
+function generateChart(title, yLabel, series, options) {
     if (series.length === 0 || series[0].points.length === 0) {
         return { id: generateId(), mermaid: '' };
     }
     const allPoints = series[0].points;
-    const timeLabels = allPoints.map(p => `"${formatTime(p.x)}"`);
-    let mermaid = 'xychart-beta\n';
+    const total = allPoints.length;
+    // Sparse labels: show at most 8 labels to avoid overlap
+    const maxLabels = 8;
+    const step = total <= maxLabels ? 1 : Math.ceil(total / maxLabels);
+    const timeLabels = allPoints.map((p, i) => {
+        if (i === 0 || i === total - 1 || i % step === 0) {
+            return `"${formatTime(p.x)}"`;
+        }
+        return '""';
+    });
+    // Color theme via init directive
+    const colors = options === null || options === void 0 ? void 0 : options.colors;
+    let initDirective = '';
+    if (colors && colors.length > 0) {
+        const themeVars = {};
+        colors.forEach((c, i) => {
+            themeVars[`xyChart.dataColor${i + 1}`] = c;
+        });
+        initDirective = `%%{init: { "theme": "base", "themeVariables": ${JSON.stringify(themeVars)} }}%%\n`;
+    }
+    // Y-axis with optional fixed range
+    const yAxisRange = (options === null || options === void 0 ? void 0 : options.yMax) ? `0 --> ${options.yMax}` : '';
+    let mermaid = '';
+    if (initDirective)
+        mermaid += initDirective;
+    mermaid += 'xychart-beta\n';
     mermaid += `    title "${title}"\n`;
     mermaid += `    x-axis [${timeLabels.join(', ')}]\n`;
-    mermaid += `    y-axis "${yLabel}"\n`;
+    mermaid += yAxisRange
+        ? `    y-axis "${yLabel}" ${yAxisRange}\n`
+        : `    y-axis "${yLabel}"\n`;
     for (const s of series) {
         const values = s.points.map(p => p.y.toFixed(1));
         mermaid += `    line "${s.label}" [${values.join(', ')}]\n`;
@@ -28235,6 +28261,11 @@ function generateChart(title, yLabel, series) {
     return { id: generateId(), mermaid };
 }
 exports.generateChart = generateChart;
+/** Wrap mermaid source in a fenced code block string (for embedding in raw HTML/markdown). */
+function mermaidCodeBlock(mermaid) {
+    return '```mermaid\n' + mermaid + '```\n';
+}
+exports.mermaidCodeBlock = mermaidCodeBlock;
 
 
 /***/ }),
@@ -28434,56 +28465,48 @@ function reportWorkflowMetrics() {
             })
             : null;
         const cpuLoad = cpuTotalLoad
-            ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
-                { label: 'Total', points: cpuTotalLoad }
-            ])
+            ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [{ label: 'Total', points: cpuTotalLoad }], { yMax: 100, colors: ['#e41a1c'] })
             : null;
         // Memory: used amount only
         const memoryUsage = activeMemoryX && activeMemoryX.length
-            ? (0, chartGenerator_1.generateChart)('Memory Usage (MB)', 'MB', [
-                { label: 'Used', points: activeMemoryX }
-            ])
+            ? (0, chartGenerator_1.generateChart)('Memory Usage (MB)', 'MB', [{ label: 'Used', points: activeMemoryX }], { colors: ['#377eb8'] })
             : null;
         // Network IO: read + write as two lines
         const networkIO = networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
             ? (0, chartGenerator_1.generateChart)('Network I/O (MB)', 'MB', [
                 { label: 'Read', points: networkReadX },
                 { label: 'Write', points: networkWriteX }
-            ])
+            ], { colors: ['#ff7f00', '#9467bd'] })
             : null;
         // Disk IO: read + write as two lines
         const diskIO = diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
             ? (0, chartGenerator_1.generateChart)('Disk I/O (MB)', 'MB', [
                 { label: 'Read', points: diskReadX },
                 { label: 'Write', points: diskWriteX }
-            ])
+            ], { colors: ['#be4d25', '#6c25be'] })
             : null;
         // Disk size: used amount only
         const diskSizeUsage = diskUsedX && diskUsedX.length
-            ? (0, chartGenerator_1.generateChart)('Disk Usage (MB)', 'MB', [
-                { label: 'Used', points: diskUsedX }
-            ])
+            ? (0, chartGenerator_1.generateChart)('Disk Usage (MB)', 'MB', [{ label: 'Used', points: diskUsedX }], { colors: ['#9467bd'] })
             : null;
         const items = [];
-        if (cpuLoad) {
-            items.push({ type: 'heading', content: '### CPU Metrics' });
-            items.push({ type: 'chart', chart: cpuLoad });
+        // Row 1: CPU + Memory
+        if (cpuLoad || memoryUsage) {
+            items.push({ type: 'heading', content: '### CPU & Memory Metrics' });
+            if (cpuLoad)
+                items.push({ type: 'chart', chart: cpuLoad });
+            if (memoryUsage)
+                items.push({ type: 'chart', chart: memoryUsage });
         }
-        if (memoryUsage) {
-            items.push({ type: 'heading', content: '### Memory Metrics' });
-            items.push({ type: 'chart', chart: memoryUsage });
-        }
+        // Row 2: Network IO + Disk IO
         if (networkIO || diskIO) {
             items.push({ type: 'heading', content: '### IO Metrics' });
-            if (networkIO) {
-                items.push({ type: 'text', content: '**Network I/O**' });
+            if (networkIO)
                 items.push({ type: 'chart', chart: networkIO });
-            }
-            if (diskIO) {
-                items.push({ type: 'text', content: '**Disk I/O**' });
+            if (diskIO)
                 items.push({ type: 'chart', chart: diskIO });
-            }
         }
+        // Disk size
         if (diskSizeUsage) {
             items.push({ type: 'heading', content: '### Disk Size Metrics' });
             items.push({ type: 'chart', chart: diskSizeUsage });
