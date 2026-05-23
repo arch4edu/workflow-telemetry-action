@@ -39,10 +39,13 @@ async function triggerStatCollect(): Promise<void> {
 
 async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const { userLoadX, systemLoadX } = await getCPUStats()
-  const { activeMemoryX, availableMemoryX } = await getMemoryStats()
+  const { memoryPercentX, totalMemoryMb } = await getMemoryStats()
   const { networkReadX, networkWriteX } = await getNetworkStats()
   const { diskReadX, diskWriteX } = await getDiskStats()
   const { diskAvailableX, diskUsedX } = await getDiskSizeStats()
+
+  // CPU core count
+  const cpuCount = require('os').cpus().length
 
   // CPU: total load = user + system
   const cpuTotalLoad: ProcessedStats[] | null =
@@ -53,19 +56,18 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
         }))
       : null
 
-  const cpuLoad = cpuTotalLoad
-    ? generateChart('CPU Load (%)', 'Percentage', [
-        { label: 'Total', points: cpuTotalLoad }
-      ], { yMax: 100, colors: ['#ff0000'] })
-    : null
-
-  // Memory: used amount only
-  const memoryUsage =
-    activeMemoryX && activeMemoryX.length
-      ? generateChart('Memory Usage (MB)', 'MB', [
-          { label: 'Used', points: activeMemoryX }
-        ], { colors: ['#0000ff'] })
-      : null
+  // Combined CPU + Memory chart (both as percentage)
+  const cpuMemChart =
+    cpuTotalLoad && cpuTotalLoad.length && memoryPercentX && memoryPercentX.length
+      ? generateChart('CPU & Memory (%)', 'Percentage', [
+          { label: 'CPU', points: cpuTotalLoad },
+          { label: 'Memory', points: memoryPercentX }
+        ], { yMax: 100, colors: ['#ff0000', '#0000ff'] })
+      : cpuTotalLoad && cpuTotalLoad.length
+        ? generateChart('CPU Load (%)', 'Percentage', [
+            { label: 'CPU', points: cpuTotalLoad }
+          ], { yMax: 100, colors: ['#ff0000'] })
+        : null
 
   // Network IO: read + write as two lines
   const networkIO =
@@ -94,23 +96,24 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
       : null
 
   const items: ReportItem[] = []
-  if (cpuLoad) {
-    items.push({ type: 'heading', content: '### CPU Metrics' })
-    items.push({ type: 'chart', chart: cpuLoad })
-  }
-  if (memoryUsage) {
-    items.push({ type: 'heading', content: '### Memory Metrics' })
-    items.push({ type: 'chart', chart: memoryUsage })
+  if (cpuMemChart) {
+    items.push({ type: 'heading', content: '### CPU & Memory Metrics' })
+    const totalMemGb = (totalMemoryMb / 1024).toFixed(1)
+    items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB**` })
+    items.push({ type: 'chart', chart: cpuMemChart })
+    items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory' })
   }
   if (networkIO || diskIO) {
     items.push({ type: 'heading', content: '### IO Metrics' })
     if (networkIO) {
       items.push({ type: 'text', content: '**Network I/O**' })
       items.push({ type: 'chart', chart: networkIO })
+      items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' })
     }
     if (diskIO) {
       items.push({ type: 'text', content: '**Disk I/O**' })
       items.push({ type: 'chart', chart: diskIO })
+      items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' })
     }
   }
   if (diskSizeUsage) {
@@ -146,9 +149,11 @@ async function getCPUStats(): Promise<ProcessedCPUStats> {
   return { userLoadX, systemLoadX }
 }
 
-async function getMemoryStats(): Promise<ProcessedMemoryStats> {
+async function getMemoryStats(): Promise<ProcessedMemoryStats & { memoryPercentX: ProcessedStats[], totalMemoryMb: number }> {
   const activeMemoryX: ProcessedStats[] = []
   const availableMemoryX: ProcessedStats[] = []
+  const memoryPercentX: ProcessedStats[] = []
+  let totalMemoryMb = 0
 
   logger.debug('Getting memory stats ...')
   const response = await axios.get(
@@ -159,13 +164,15 @@ async function getMemoryStats(): Promise<ProcessedMemoryStats> {
   }
 
   response.data.forEach((element: MemoryStats) => {
-    activeMemoryX.push({
-      x: element.time,
-      y:
-        element.activeMemoryMb && element.activeMemoryMb > 0
-          ? element.activeMemoryMb
-          : 0
-    })
+    if (element.totalMemoryMb && element.totalMemoryMb > 0) {
+      totalMemoryMb = element.totalMemoryMb
+    }
+
+    const active = element.activeMemoryMb && element.activeMemoryMb > 0
+      ? element.activeMemoryMb
+      : 0
+
+    activeMemoryX.push({ x: element.time, y: active })
 
     availableMemoryX.push({
       x: element.time,
@@ -174,9 +181,13 @@ async function getMemoryStats(): Promise<ProcessedMemoryStats> {
           ? element.availableMemoryMb
           : 0
     })
+
+    // Memory usage percentage
+    const percent = totalMemoryMb > 0 ? (active / totalMemoryMb) * 100 : 0
+    memoryPercentX.push({ x: element.time, y: percent })
   })
 
-  return { activeMemoryX, availableMemoryX }
+  return { activeMemoryX, availableMemoryX, memoryPercentX, totalMemoryMb }
 }
 
 async function getNetworkStats(): Promise<ProcessedNetworkStats> {

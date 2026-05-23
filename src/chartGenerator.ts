@@ -54,8 +54,22 @@ export function generateChart(
   const maxLabels = 8
   const labelStep = sampled <= maxLabels ? 1 : Math.ceil(sampled / maxLabels)
   let hiddenCount = 1
+
+  // Find which positions would show a real label via step alignment
+  const showAtStep = new Set<number>()
+  for (let i = 0; i < sampled; i++) {
+    if (i % labelStep === 0) showAtStep.add(i)
+  }
+  // Always show first and last; suppress step-aligned labels too close to last
+  showAtStep.add(0)
+  showAtStep.add(sampled - 1)
+  // Remove any step-aligned label within 2 positions of the last to avoid overlap
+  for (let i = sampled - 2; i >= Math.max(0, sampled - 3); i--) {
+    if (i !== 0 && showAtStep.has(i)) showAtStep.delete(i)
+  }
+
   const timeLabels = indices.map((idx, i) => {
-    if (i === 0 || i === sampled - 1 || i % labelStep === 0) {
+    if (showAtStep.has(i)) {
       return `"${formatTime(allPoints[idx].x)}"`
     }
     return `"${'_'.repeat(hiddenCount++)}"`

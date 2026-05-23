@@ -28243,8 +28243,22 @@ function generateChart(title, yLabel, series, options) {
     const maxLabels = 8;
     const labelStep = sampled <= maxLabels ? 1 : Math.ceil(sampled / maxLabels);
     let hiddenCount = 1;
+    // Find which positions would show a real label via step alignment
+    const showAtStep = new Set();
+    for (let i = 0; i < sampled; i++) {
+        if (i % labelStep === 0)
+            showAtStep.add(i);
+    }
+    // Always show first and last; suppress step-aligned labels too close to last
+    showAtStep.add(0);
+    showAtStep.add(sampled - 1);
+    // Remove any step-aligned label within 2 positions of the last to avoid overlap
+    for (let i = sampled - 2; i >= Math.max(0, sampled - 3); i--) {
+        if (i !== 0 && showAtStep.has(i))
+            showAtStep.delete(i);
+    }
     const timeLabels = indices.map((idx, i) => {
-        if (i === 0 || i === sampled - 1 || i % labelStep === 0) {
+        if (showAtStep.has(i)) {
             return `"${formatTime(allPoints[idx].x)}"`;
         }
         return `"${'_'.repeat(hiddenCount++)}"`;
@@ -28396,10 +28410,12 @@ function triggerStatCollect() {
 function reportWorkflowMetrics() {
     return __awaiter(this, void 0, void 0, function* () {
         const { userLoadX, systemLoadX } = yield getCPUStats();
-        const { activeMemoryX, availableMemoryX } = yield getMemoryStats();
+        const { memoryPercentX, totalMemoryMb } = yield getMemoryStats();
         const { networkReadX, networkWriteX } = yield getNetworkStats();
         const { diskReadX, diskWriteX } = yield getDiskStats();
         const { diskAvailableX, diskUsedX } = yield getDiskSizeStats();
+        // CPU core count
+        const cpuCount = (__nccwpck_require__(2037).cpus)().length;
         // CPU: total load = user + system
         const cpuTotalLoad = userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
             ? userLoadX.map((u, i) => {
@@ -28410,17 +28426,17 @@ function reportWorkflowMetrics() {
                 });
             })
             : null;
-        const cpuLoad = cpuTotalLoad
-            ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
-                { label: 'Total', points: cpuTotalLoad }
-            ], { yMax: 100, colors: ['#ff0000'] })
-            : null;
-        // Memory: used amount only
-        const memoryUsage = activeMemoryX && activeMemoryX.length
-            ? (0, chartGenerator_1.generateChart)('Memory Usage (MB)', 'MB', [
-                { label: 'Used', points: activeMemoryX }
-            ], { colors: ['#0000ff'] })
-            : null;
+        // Combined CPU + Memory chart (both as percentage)
+        const cpuMemChart = cpuTotalLoad && cpuTotalLoad.length && memoryPercentX && memoryPercentX.length
+            ? (0, chartGenerator_1.generateChart)('CPU & Memory (%)', 'Percentage', [
+                { label: 'CPU', points: cpuTotalLoad },
+                { label: 'Memory', points: memoryPercentX }
+            ], { yMax: 100, colors: ['#ff0000', '#0000ff'] })
+            : cpuTotalLoad && cpuTotalLoad.length
+                ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
+                    { label: 'CPU', points: cpuTotalLoad }
+                ], { yMax: 100, colors: ['#ff0000'] })
+                : null;
         // Network IO: read + write as two lines
         const networkIO = networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
             ? (0, chartGenerator_1.generateChart)('Network I/O (MB)', 'MB', [
@@ -28442,23 +28458,24 @@ function reportWorkflowMetrics() {
             ], { colors: ['#0000ff'] })
             : null;
         const items = [];
-        if (cpuLoad) {
-            items.push({ type: 'heading', content: '### CPU Metrics' });
-            items.push({ type: 'chart', chart: cpuLoad });
-        }
-        if (memoryUsage) {
-            items.push({ type: 'heading', content: '### Memory Metrics' });
-            items.push({ type: 'chart', chart: memoryUsage });
+        if (cpuMemChart) {
+            items.push({ type: 'heading', content: '### CPU & Memory Metrics' });
+            const totalMemGb = (totalMemoryMb / 1024).toFixed(1);
+            items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB**` });
+            items.push({ type: 'chart', chart: cpuMemChart });
+            items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory' });
         }
         if (networkIO || diskIO) {
             items.push({ type: 'heading', content: '### IO Metrics' });
             if (networkIO) {
                 items.push({ type: 'text', content: '**Network I/O**' });
                 items.push({ type: 'chart', chart: networkIO });
+                items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' });
             }
             if (diskIO) {
                 items.push({ type: 'text', content: '**Disk I/O**' });
                 items.push({ type: 'chart', chart: diskIO });
+                items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' });
             }
         }
         if (diskSizeUsage) {
@@ -28494,26 +28511,32 @@ function getMemoryStats() {
     return __awaiter(this, void 0, void 0, function* () {
         const activeMemoryX = [];
         const availableMemoryX = [];
+        const memoryPercentX = [];
+        let totalMemoryMb = 0;
         logger.debug('Getting memory stats ...');
         const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/memory`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got memory stats: ${JSON.stringify(response.data)}`);
         }
         response.data.forEach((element) => {
-            activeMemoryX.push({
-                x: element.time,
-                y: element.activeMemoryMb && element.activeMemoryMb > 0
-                    ? element.activeMemoryMb
-                    : 0
-            });
+            if (element.totalMemoryMb && element.totalMemoryMb > 0) {
+                totalMemoryMb = element.totalMemoryMb;
+            }
+            const active = element.activeMemoryMb && element.activeMemoryMb > 0
+                ? element.activeMemoryMb
+                : 0;
+            activeMemoryX.push({ x: element.time, y: active });
             availableMemoryX.push({
                 x: element.time,
                 y: element.availableMemoryMb && element.availableMemoryMb > 0
                     ? element.availableMemoryMb
                     : 0
             });
+            // Memory usage percentage
+            const percent = totalMemoryMb > 0 ? (active / totalMemoryMb) * 100 : 0;
+            memoryPercentX.push({ x: element.time, y: percent });
         });
-        return { activeMemoryX, availableMemoryX };
+        return { activeMemoryX, availableMemoryX, memoryPercentX, totalMemoryMb };
     });
 }
 function getNetworkStats() {
