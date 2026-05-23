@@ -27,7 +27,7 @@ export function generateChart(
   }
 
   const allPoints = series[0].points
-  const timeLabels = allPoints.map(p => formatTime(p.x))
+  const timeLabels = allPoints.map(p => `"${formatTime(p.x)}"`)
 
   let mermaid = 'xychart-beta\n'
   mermaid += `    title "${title}"\n`

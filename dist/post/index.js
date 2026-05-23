@@ -38050,7 +38050,7 @@ function generateChart(title, yLabel, series) {
         return { id: generateId(), mermaid: '' };
     }
     const allPoints = series[0].points;
-    const timeLabels = allPoints.map(p => formatTime(p.x));
+    const timeLabels = allPoints.map(p => `"${formatTime(p.x)}"`);
     let mermaid = 'xychart-beta\n';
     mermaid += `    title "${title}"\n`;
     mermaid += `    x-axis [${timeLabels.join(', ')}]\n`;
