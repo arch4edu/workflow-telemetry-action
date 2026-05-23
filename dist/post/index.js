@@ -38305,9 +38305,6 @@ function reportAll(currentJob, stepTracerContent, statCollectorItems) {
         if ('true' === jobSummary) {
             core.summary.addHeading(title, 2);
             core.summary.addRaw(info + '\n');
-            if (stepTracerContent) {
-                core.summary.addRaw(stepTracerContent + '\n');
-            }
             if (statCollectorItems) {
                 renderReportItems(statCollectorItems);
             }
