@@ -6,7 +6,6 @@ import {
   CPUStats,
   DiskSizeStats,
   DiskStats,
-  GraphResponse,
   LineGraphOptions,
   MemoryStats,
   NetworkStats,
@@ -20,7 +19,13 @@ import {
   WorkflowJobType
 } from './interfaces'
 import * as logger from './logger'
-import { generateLineChart, generateStackedAreaChart } from './chartGenerator'
+import { generateLineChart, generateStackedAreaChart, ChartResult } from './chartGenerator'
+
+export interface ReportItem {
+  type: 'heading' | 'text' | 'chart' | 'table'
+  content?: string
+  chart?: ChartResult
+}
 
 const STAT_SERVER_PORT = 7777
 
@@ -34,7 +39,7 @@ async function triggerStatCollect(): Promise<void> {
   }
 }
 
-async function reportWorkflowMetrics(): Promise<string> {
+async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const { userLoadX, systemLoadX } = await getCPUStats()
   const { activeMemoryX, availableMemoryX } = await getMemoryStats()
   const { networkReadX, networkWriteX } = await getNetworkStats()
@@ -149,47 +154,43 @@ async function reportWorkflowMetrics(): Promise<string> {
         })
       : null
 
-  const postContentItems: string[] = []
+  const items: ReportItem[] = []
   if (cpuLoad) {
-    postContentItems.push(
-      '### CPU Metrics',
-      `![${cpuLoad.id}](${cpuLoad.url})`,
-      ''
-    )
+    items.push({ type: 'heading', content: '### CPU Metrics' })
+    items.push({ type: 'chart', chart: cpuLoad })
   }
   if (memoryUsage) {
-    postContentItems.push(
-      '### Memory Metrics',
-      `![${memoryUsage.id}](${memoryUsage.url})`,
-      ''
-    )
+    items.push({ type: 'heading', content: '### Memory Metrics' })
+    items.push({ type: 'chart', chart: memoryUsage })
   }
   if ((networkIORead && networkIOWrite) || (diskIORead && diskIOWrite)) {
-    postContentItems.push(
-      '### IO Metrics',
+    items.push({ type: 'heading', content: '### IO Metrics' })
+    const tableLines: string[] = [
       '|               | Read      | Write     |',
       '|---            |---        |---        |'
-    )
-  }
-  if (networkIORead && networkIOWrite) {
-    postContentItems.push(
-      `| Network I/O   | ![${networkIORead.id}](${networkIORead.url})        | ![${networkIOWrite.id}](${networkIOWrite.url})        |`
-    )
-  }
-  if (diskIORead && diskIOWrite) {
-    postContentItems.push(
-      `| Disk I/O      | ![${diskIORead.id}](${diskIORead.url})              | ![${diskIOWrite.id}](${diskIOWrite.url})              |`
-    )
+    ]
+    if (networkIORead && networkIOWrite) {
+      tableLines.push(
+        `| Network I/O   | (read chart)        | (write chart)        |`
+      )
+      items.push({ type: 'chart', chart: networkIORead })
+      items.push({ type: 'chart', chart: networkIOWrite })
+    }
+    if (diskIORead && diskIOWrite) {
+      tableLines.push(
+        `| Disk I/O      | (read chart)              | (write chart)              |`
+      )
+      items.push({ type: 'chart', chart: diskIORead })
+      items.push({ type: 'chart', chart: diskIOWrite })
+    }
+    items.push({ type: 'table', content: tableLines.join('\n') })
   }
   if (diskSizeUsage) {
-    postContentItems.push(
-      '### Disk Size Metrics',
-      `![${diskSizeUsage.id}](${diskSizeUsage.url})`,
-      ''
-    )
+    items.push({ type: 'heading', content: '### Disk Size Metrics' })
+    items.push({ type: 'chart', chart: diskSizeUsage })
   }
 
-  return postContentItems.join('\n')
+  return items
 }
 
 async function getCPUStats(): Promise<ProcessedCPUStats> {
@@ -332,13 +333,13 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
   return { diskAvailableX, diskUsedX }
 }
 
-function getLineGraph(options: LineGraphOptions): GraphResponse {
+function getLineGraph(options: LineGraphOptions): ChartResult {
   return generateLineChart(options.label, options.line)
 }
 
 function getStackedAreaGraph(
   options: StackedAreaGraphOptions
-): GraphResponse {
+): ChartResult {
   return generateStackedAreaChart(options.label, options.areas)
 }
 
@@ -404,15 +405,15 @@ export async function finish(currentJob: WorkflowJobType): Promise<boolean> {
 
 export async function report(
   currentJob: WorkflowJobType
-): Promise<string | null> {
+): Promise<ReportItem[] | null> {
   logger.info(`Reporting stat collector result ...`)
 
   try {
-    const postContent: string = await reportWorkflowMetrics()
+    const items: ReportItem[] = await reportWorkflowMetrics()
 
     logger.info(`Reported stat collector result`)
 
-    return postContent
+    return items
   } catch (error: any) {
     logger.error('Unable to report stat collector result')
     logger.error(error)

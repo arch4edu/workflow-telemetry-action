@@ -3,6 +3,7 @@ import * as github from '@actions/github'
 import { Octokit } from '@octokit/action'
 import * as stepTracer from './stepTracer'
 import * as statCollector from './statCollector'
+import { ReportItem } from './statCollector'
 import * as logger from './logger'
 import { WorkflowJobType } from './interfaces'
 
@@ -61,7 +62,8 @@ async function getCurrentJob(): Promise<WorkflowJobType | null> {
 
 async function reportAll(
   currentJob: WorkflowJobType,
-  content: string
+  stepTracerContent: string | null,
+  statCollectorItems: ReportItem[] | null
 ): Promise<void> {
   logger.info(`Reporting all content ...`)
 
@@ -84,11 +86,24 @@ async function reportAll(
     `Workflow telemetry for commit [${commit}](${commitUrl})\n` +
     `You can access workflow job details [here](${jobUrl})`
 
-  const postContent: string = [title, info, content].join('\n')
-
   const jobSummary: string = core.getInput('job_summary')
   if ('true' === jobSummary) {
-    core.summary.addRaw(postContent)
+    core.summary.addHeading(title, 2)
+    core.summary.addRaw(info + '\n')
+    if (stepTracerContent) {
+      core.summary.addRaw(stepTracerContent + '\n')
+    }
+    if (statCollectorItems) {
+      for (const item of statCollectorItems) {
+        if (item.type === 'heading' && item.content) {
+          core.summary.addRaw(item.content + '\n')
+        } else if (item.type === 'chart' && item.chart?.svg) {
+          core.summary.addRaw(item.chart.svg + '\n')
+        } else if (item.type === 'table' && item.content) {
+          core.summary.addRaw(item.content + '\n')
+        }
+      }
+    }
     await core.summary.write()
   }
 
@@ -98,10 +113,16 @@ async function reportAll(
       logger.debug(`Found Pull Request: ${JSON.stringify(pull_request)}`)
     }
 
+    // For PR comments, skip charts (they don't render without a URL)
+    let prContent = title + '\n' + info + '\n'
+    if (stepTracerContent) {
+      prContent += stepTracerContent + '\n'
+    }
+
     await octokit.rest.issues.createComment({
       ...github.context.repo,
       issue_number: Number(github.context.payload.pull_request?.number),
-      body: postContent
+      body: prContent
     })
   } else {
     logger.debug(`Couldn't find Pull Request`)
@@ -133,19 +154,10 @@ async function run(): Promise<void> {
     // Report step tracer
     const stepTracerContent: string | null = await stepTracer.report(currentJob)
     // Report stat collector
-    const stepCollectorContent: string | null =
+    const statCollectorItems: ReportItem[] | null =
       await statCollector.report(currentJob)
 
-    let allContent = ''
-
-    if (stepTracerContent) {
-      allContent = allContent.concat(stepTracerContent, '\n')
-    }
-    if (stepCollectorContent) {
-      allContent = allContent.concat(stepCollectorContent, '\n')
-    }
-
-    await reportAll(currentJob, allContent)
+    await reportAll(currentJob, stepTracerContent, statCollectorItems)
 
     logger.info(`Finish completed`)
   } catch (error: any) {

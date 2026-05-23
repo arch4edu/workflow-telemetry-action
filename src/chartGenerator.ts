@@ -180,22 +180,22 @@ function pointsToPath(
   return parts.join(' ')
 }
 
-function svgToDataUrl(svg: string): string {
-  const base64 = Buffer.from(svg, 'utf-8').toString('base64')
-  return `data:image/svg+xml;base64,${base64}`
-}
-
 function generateId(): string {
   return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export interface ChartResult {
+  id: string
+  svg: string
 }
 
 export function generateLineChart(
   yLabel: string,
   line: LineConfig
-): GraphResponse {
+): ChartResult {
   const points = line.points
   if (points.length === 0) {
-    return { id: generateId(), url: '' }
+    return { id: generateId(), svg: '' }
   }
 
   const minTime = points[0].x
@@ -213,15 +213,15 @@ export function generateLineChart(
     '</svg>'
   ].join('\n')
 
-  return { id: generateId(), url: svgToDataUrl(svg) }
+  return { id: generateId(), svg }
 }
 
 export function generateStackedAreaChart(
   yLabel: string,
   areas: AreaConfig[]
-): GraphResponse {
+): ChartResult {
   if (areas.length === 0 || areas[0].points.length === 0) {
-    return { id: generateId(), url: '' }
+    return { id: generateId(), svg: '' }
   }
 
   const allPoints = areas[0].points
@@ -284,5 +284,5 @@ export function generateStackedAreaChart(
 
   svgParts.push('</svg>')
 
-  return { id: generateId(), url: svgToDataUrl(svgParts.join('\n')) }
+  return { id: generateId(), svg: svgParts.join('\n') }
 }

@@ -38160,17 +38160,13 @@ function pointsToPath(points, minTime, maxTime, maxY) {
     }
     return parts.join(' ');
 }
-function svgToDataUrl(svg) {
-    const base64 = Buffer.from(svg, 'utf-8').toString('base64');
-    return `data:image/svg+xml;base64,${base64}`;
-}
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 function generateLineChart(yLabel, line) {
     const points = line.points;
     if (points.length === 0) {
-        return { id: generateId(), url: '' };
+        return { id: generateId(), svg: '' };
     }
     const minTime = points[0].x;
     const maxTime = points[points.length - 1].x;
@@ -38184,12 +38180,12 @@ function generateLineChart(yLabel, line) {
         `<path d="${pathD}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
         '</svg>'
     ].join('\n');
-    return { id: generateId(), url: svgToDataUrl(svg) };
+    return { id: generateId(), svg };
 }
 exports.generateLineChart = generateLineChart;
 function generateStackedAreaChart(yLabel, areas) {
     if (areas.length === 0 || areas[0].points.length === 0) {
-        return { id: generateId(), url: '' };
+        return { id: generateId(), svg: '' };
     }
     const allPoints = areas[0].points;
     const minTime = allPoints[0].x;
@@ -38238,7 +38234,7 @@ function generateStackedAreaChart(yLabel, areas) {
         svgParts.push(`<path d="${pathD}" fill="${areas[areaIdx].color}" stroke="${areas[areaIdx].color.replace(/99$/, '')}" stroke-width="1" opacity="0.85"/>`);
     }
     svgParts.push('</svg>');
-    return { id: generateId(), url: svgToDataUrl(svgParts.join('\n')) };
+    return { id: generateId(), svg: svgParts.join('\n') };
 }
 exports.generateStackedAreaChart = generateStackedAreaChart;
 
@@ -38396,8 +38392,8 @@ function getCurrentJob() {
         return null;
     });
 }
-function reportAll(currentJob, content) {
-    var _a;
+function reportAll(currentJob, stepTracerContent, statCollectorItems) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         logger.info(`Reporting all content ...`);
         logger.debug(`Workflow - Job: ${workflow} - ${job}`);
@@ -38411,10 +38407,26 @@ function reportAll(currentJob, content) {
         logger.debug(`Commit url: ${commitUrl}`);
         const info = `Workflow telemetry for commit [${commit}](${commitUrl})\n` +
             `You can access workflow job details [here](${jobUrl})`;
-        const postContent = [title, info, content].join('\n');
         const jobSummary = core.getInput('job_summary');
         if ('true' === jobSummary) {
-            core.summary.addRaw(postContent);
+            core.summary.addHeading(title, 2);
+            core.summary.addRaw(info + '\n');
+            if (stepTracerContent) {
+                core.summary.addRaw(stepTracerContent + '\n');
+            }
+            if (statCollectorItems) {
+                for (const item of statCollectorItems) {
+                    if (item.type === 'heading' && item.content) {
+                        core.summary.addRaw(item.content + '\n');
+                    }
+                    else if (item.type === 'chart' && ((_a = item.chart) === null || _a === void 0 ? void 0 : _a.svg)) {
+                        core.summary.addRaw(item.chart.svg + '\n');
+                    }
+                    else if (item.type === 'table' && item.content) {
+                        core.summary.addRaw(item.content + '\n');
+                    }
+                }
+            }
             yield core.summary.write();
         }
         const commentOnPR = core.getInput('comment_on_pr');
@@ -38422,7 +38434,12 @@ function reportAll(currentJob, content) {
             if (logger.isDebugEnabled()) {
                 logger.debug(`Found Pull Request: ${JSON.stringify(pull_request)}`);
             }
-            yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, github.context.repo), { issue_number: Number((_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number), body: postContent }));
+            // For PR comments, skip charts (they don't render without a URL)
+            let prContent = title + '\n' + info + '\n';
+            if (stepTracerContent) {
+                prContent += stepTracerContent + '\n';
+            }
+            yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, github.context.repo), { issue_number: Number((_b = github.context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.number), body: prContent }));
         }
         else {
             logger.debug(`Couldn't find Pull Request`);
@@ -38447,15 +38464,8 @@ function run() {
             // Report step tracer
             const stepTracerContent = yield stepTracer.report(currentJob);
             // Report stat collector
-            const stepCollectorContent = yield statCollector.report(currentJob);
-            let allContent = '';
-            if (stepTracerContent) {
-                allContent = allContent.concat(stepTracerContent, '\n');
-            }
-            if (stepCollectorContent) {
-                allContent = allContent.concat(stepCollectorContent, '\n');
-            }
-            yield reportAll(currentJob, allContent);
+            const statCollectorItems = yield statCollector.report(currentJob);
+            yield reportAll(currentJob, stepTracerContent, statCollectorItems);
             logger.info(`Finish completed`);
         }
         catch (error) {
@@ -38627,26 +38637,38 @@ function reportWorkflowMetrics() {
                 ]
             })
             : null;
-        const postContentItems = [];
+        const items = [];
         if (cpuLoad) {
-            postContentItems.push('### CPU Metrics', `![${cpuLoad.id}](${cpuLoad.url})`, '');
+            items.push({ type: 'heading', content: '### CPU Metrics' });
+            items.push({ type: 'chart', chart: cpuLoad });
         }
         if (memoryUsage) {
-            postContentItems.push('### Memory Metrics', `![${memoryUsage.id}](${memoryUsage.url})`, '');
+            items.push({ type: 'heading', content: '### Memory Metrics' });
+            items.push({ type: 'chart', chart: memoryUsage });
         }
         if ((networkIORead && networkIOWrite) || (diskIORead && diskIOWrite)) {
-            postContentItems.push('### IO Metrics', '|               | Read      | Write     |', '|---            |---        |---        |');
-        }
-        if (networkIORead && networkIOWrite) {
-            postContentItems.push(`| Network I/O   | ![${networkIORead.id}](${networkIORead.url})        | ![${networkIOWrite.id}](${networkIOWrite.url})        |`);
-        }
-        if (diskIORead && diskIOWrite) {
-            postContentItems.push(`| Disk I/O      | ![${diskIORead.id}](${diskIORead.url})              | ![${diskIOWrite.id}](${diskIOWrite.url})              |`);
+            items.push({ type: 'heading', content: '### IO Metrics' });
+            const tableLines = [
+                '|               | Read      | Write     |',
+                '|---            |---        |---        |'
+            ];
+            if (networkIORead && networkIOWrite) {
+                tableLines.push(`| Network I/O   | (read chart)        | (write chart)        |`);
+                items.push({ type: 'chart', chart: networkIORead });
+                items.push({ type: 'chart', chart: networkIOWrite });
+            }
+            if (diskIORead && diskIOWrite) {
+                tableLines.push(`| Disk I/O      | (read chart)              | (write chart)              |`);
+                items.push({ type: 'chart', chart: diskIORead });
+                items.push({ type: 'chart', chart: diskIOWrite });
+            }
+            items.push({ type: 'table', content: tableLines.join('\n') });
         }
         if (diskSizeUsage) {
-            postContentItems.push('### Disk Size Metrics', `![${diskSizeUsage.id}](${diskSizeUsage.url})`, '');
+            items.push({ type: 'heading', content: '### Disk Size Metrics' });
+            items.push({ type: 'chart', chart: diskSizeUsage });
         }
-        return postContentItems.join('\n');
+        return items;
     });
 }
 function getCPUStats() {
@@ -38824,9 +38846,9 @@ function report(currentJob) {
     return __awaiter(this, void 0, void 0, function* () {
         logger.info(`Reporting stat collector result ...`);
         try {
-            const postContent = yield reportWorkflowMetrics();
+            const items = yield reportWorkflowMetrics();
             logger.info(`Reported stat collector result`);
-            return postContent;
+            return items;
         }
         catch (error) {
             logger.error('Unable to report stat collector result');

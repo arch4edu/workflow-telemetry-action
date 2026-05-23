@@ -28333,17 +28333,13 @@ function pointsToPath(points, minTime, maxTime, maxY) {
     }
     return parts.join(' ');
 }
-function svgToDataUrl(svg) {
-    const base64 = Buffer.from(svg, 'utf-8').toString('base64');
-    return `data:image/svg+xml;base64,${base64}`;
-}
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 function generateLineChart(yLabel, line) {
     const points = line.points;
     if (points.length === 0) {
-        return { id: generateId(), url: '' };
+        return { id: generateId(), svg: '' };
     }
     const minTime = points[0].x;
     const maxTime = points[points.length - 1].x;
@@ -28357,12 +28353,12 @@ function generateLineChart(yLabel, line) {
         `<path d="${pathD}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
         '</svg>'
     ].join('\n');
-    return { id: generateId(), url: svgToDataUrl(svg) };
+    return { id: generateId(), svg };
 }
 exports.generateLineChart = generateLineChart;
 function generateStackedAreaChart(yLabel, areas) {
     if (areas.length === 0 || areas[0].points.length === 0) {
-        return { id: generateId(), url: '' };
+        return { id: generateId(), svg: '' };
     }
     const allPoints = areas[0].points;
     const minTime = allPoints[0].x;
@@ -28411,7 +28407,7 @@ function generateStackedAreaChart(yLabel, areas) {
         svgParts.push(`<path d="${pathD}" fill="${areas[areaIdx].color}" stroke="${areas[areaIdx].color.replace(/99$/, '')}" stroke-width="1" opacity="0.85"/>`);
     }
     svgParts.push('</svg>');
-    return { id: generateId(), url: svgToDataUrl(svgParts.join('\n')) };
+    return { id: generateId(), svg: svgParts.join('\n') };
 }
 exports.generateStackedAreaChart = generateStackedAreaChart;
 
@@ -28696,26 +28692,38 @@ function reportWorkflowMetrics() {
                 ]
             })
             : null;
-        const postContentItems = [];
+        const items = [];
         if (cpuLoad) {
-            postContentItems.push('### CPU Metrics', `![${cpuLoad.id}](${cpuLoad.url})`, '');
+            items.push({ type: 'heading', content: '### CPU Metrics' });
+            items.push({ type: 'chart', chart: cpuLoad });
         }
         if (memoryUsage) {
-            postContentItems.push('### Memory Metrics', `![${memoryUsage.id}](${memoryUsage.url})`, '');
+            items.push({ type: 'heading', content: '### Memory Metrics' });
+            items.push({ type: 'chart', chart: memoryUsage });
         }
         if ((networkIORead && networkIOWrite) || (diskIORead && diskIOWrite)) {
-            postContentItems.push('### IO Metrics', '|               | Read      | Write     |', '|---            |---        |---        |');
-        }
-        if (networkIORead && networkIOWrite) {
-            postContentItems.push(`| Network I/O   | ![${networkIORead.id}](${networkIORead.url})        | ![${networkIOWrite.id}](${networkIOWrite.url})        |`);
-        }
-        if (diskIORead && diskIOWrite) {
-            postContentItems.push(`| Disk I/O      | ![${diskIORead.id}](${diskIORead.url})              | ![${diskIOWrite.id}](${diskIOWrite.url})              |`);
+            items.push({ type: 'heading', content: '### IO Metrics' });
+            const tableLines = [
+                '|               | Read      | Write     |',
+                '|---            |---        |---        |'
+            ];
+            if (networkIORead && networkIOWrite) {
+                tableLines.push(`| Network I/O   | (read chart)        | (write chart)        |`);
+                items.push({ type: 'chart', chart: networkIORead });
+                items.push({ type: 'chart', chart: networkIOWrite });
+            }
+            if (diskIORead && diskIOWrite) {
+                tableLines.push(`| Disk I/O      | (read chart)              | (write chart)              |`);
+                items.push({ type: 'chart', chart: diskIORead });
+                items.push({ type: 'chart', chart: diskIOWrite });
+            }
+            items.push({ type: 'table', content: tableLines.join('\n') });
         }
         if (diskSizeUsage) {
-            postContentItems.push('### Disk Size Metrics', `![${diskSizeUsage.id}](${diskSizeUsage.url})`, '');
+            items.push({ type: 'heading', content: '### Disk Size Metrics' });
+            items.push({ type: 'chart', chart: diskSizeUsage });
         }
-        return postContentItems.join('\n');
+        return items;
     });
 }
 function getCPUStats() {
@@ -28893,9 +28901,9 @@ function report(currentJob) {
     return __awaiter(this, void 0, void 0, function* () {
         logger.info(`Reporting stat collector result ...`);
         try {
-            const postContent = yield reportWorkflowMetrics();
+            const items = yield reportWorkflowMetrics();
             logger.info(`Reported stat collector result`);
-            return postContent;
+            return items;
         }
         catch (error) {
             logger.error('Unable to report stat collector result');
