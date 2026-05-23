@@ -76,23 +76,29 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
     ? generateChart('System Usage (%)', 'Percentage', seriesList, { yMax: 100, colors: colorList })
     : null
 
-  // Network IO: read + write as two lines
-  const networkIO =
-    networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
-      ? generateChart('Network I/O (MB)', 'MB', [
-          { label: 'Read', points: networkReadX },
-          { label: 'Write', points: networkWriteX }
-        ], { colors: ['#ff0000', '#0000ff'] })
-      : null
+  // Combined IO chart: Network + Disk
+  const ioSeriesList: Array<{ label: string; points: ProcessedStats[] }> = []
+  const ioColorList: string[] = []
+  if (networkReadX && networkReadX.length) {
+    ioSeriesList.push({ label: 'Net Read', points: networkReadX })
+    ioColorList.push('#ff0000')
+  }
+  if (networkWriteX && networkWriteX.length) {
+    ioSeriesList.push({ label: 'Net Write', points: networkWriteX })
+    ioColorList.push('#0000ff')
+  }
+  if (diskReadX && diskReadX.length) {
+    ioSeriesList.push({ label: 'Disk Read', points: diskReadX })
+    ioColorList.push('#ff8800')
+  }
+  if (diskWriteX && diskWriteX.length) {
+    ioSeriesList.push({ label: 'Disk Write', points: diskWriteX })
+    ioColorList.push('#00aa00')
+  }
 
-  // Disk IO: read + write as two lines
-  const diskIO =
-    diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
-      ? generateChart('Disk I/O (MB)', 'MB', [
-          { label: 'Read', points: diskReadX },
-          { label: 'Write', points: diskWriteX }
-        ], { colors: ['#ff0000', '#0000ff'] })
-      : null
+  const ioChart = ioSeriesList.length > 0
+    ? generateChart('I/O (MB)', 'MB', ioSeriesList, { colors: ioColorList })
+    : null
 
   const items: ReportItem[] = []
   if (mainChart) {
@@ -103,18 +109,10 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
     items.push({ type: 'chart', chart: mainChart })
     items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory &nbsp;&nbsp; 🟢 Disk' })
   }
-  if (networkIO || diskIO) {
+  if (ioChart) {
     items.push({ type: 'heading', content: '### IO Metrics' })
-    if (networkIO) {
-      items.push({ type: 'text', content: '**Network I/O**' })
-      items.push({ type: 'chart', chart: networkIO })
-      items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' })
-    }
-    if (diskIO) {
-      items.push({ type: 'text', content: '**Disk I/O**' })
-      items.push({ type: 'chart', chart: diskIO })
-      items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' })
-    }
+    items.push({ type: 'chart', chart: ioChart })
+    items.push({ type: 'text', content: '🔴 Net Read &nbsp;&nbsp; 🔵 Net Write &nbsp;&nbsp; 🟠 Disk Read &nbsp;&nbsp; 🟢 Disk Write' })
   }
 
   return items
