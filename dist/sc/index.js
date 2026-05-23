@@ -28223,7 +28223,32 @@ function generateChart(title, yLabel, series, options) {
         return { id: generateId(), mermaid: '' };
     }
     const allPoints = series[0].points;
-    const timeLabels = allPoints.map(p => `"${formatTime(p.x)}"`);
+    const total = allPoints.length;
+    // Downsample to at most 32 evenly-spaced points (including first and last)
+    const maxPoints = 32;
+    let indices;
+    if (total <= maxPoints) {
+        indices = Array.from({ length: total }, (_, i) => i);
+    }
+    else {
+        indices = [0];
+        const step = (total - 1) / (maxPoints - 1);
+        for (let i = 1; i < maxPoints - 1; i++) {
+            indices.push(Math.round(step * i));
+        }
+        indices.push(total - 1);
+    }
+    // Show ~8 real labels; hidden positions use incrementing spaces for uniqueness
+    const sampled = indices.length;
+    const maxLabels = 8;
+    const labelStep = sampled <= maxLabels ? 1 : Math.ceil(sampled / maxLabels);
+    let spaceCount = 1;
+    const timeLabels = indices.map((idx, i) => {
+        if (i === 0 || i === sampled - 1 || i % labelStep === 0) {
+            return `"${formatTime(allPoints[idx].x)}"`;
+        }
+        return `"${' '.repeat(spaceCount++)}"`;
+    });
     // Y-axis with optional fixed range
     const yAxisRange = (options === null || options === void 0 ? void 0 : options.yMax) ? `0 --> ${options.yMax}` : '';
     let mermaid = 'xychart-beta\n';
@@ -28233,7 +28258,7 @@ function generateChart(title, yLabel, series, options) {
         ? `    y-axis "${yLabel}" ${yAxisRange}\n`
         : `    y-axis "${yLabel}"\n`;
     for (const s of series) {
-        const values = s.points.map(p => p.y.toFixed(1));
+        const values = indices.map(idx => s.points[idx].y.toFixed(1));
         mermaid += `    line "${s.label}" [${values.join(', ')}]\n`;
     }
     return { id: generateId(), mermaid };
