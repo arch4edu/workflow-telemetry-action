@@ -17,7 +17,7 @@ import {
   WorkflowJobType
 } from './interfaces'
 import * as logger from './logger'
-import { generateChart, ChartResult, ChartOptions } from './chartGenerator'
+import { generateChart, ChartResult } from './chartGenerator'
 
 export interface ReportItem {
   type: 'heading' | 'text' | 'chart' | 'table'
@@ -54,81 +54,65 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
       : null
 
   const cpuLoad = cpuTotalLoad
-    ? generateChart(
-        'CPU Load (%)',
-        'Percentage',
-        [{ label: 'Total', points: cpuTotalLoad }],
-        { yMax: 100, colors: ['#e41a1c'] }
-      )
+    ? generateChart('CPU Load (%)', 'Percentage', [
+        { label: 'Total', points: cpuTotalLoad }
+      ], { yMax: 100 })
     : null
 
   // Memory: used amount only
   const memoryUsage =
     activeMemoryX && activeMemoryX.length
-      ? generateChart(
-          'Memory Usage (MB)',
-          'MB',
-          [{ label: 'Used', points: activeMemoryX }],
-          { colors: ['#377eb8'] }
-        )
+      ? generateChart('Memory Usage (MB)', 'MB', [
+          { label: 'Used', points: activeMemoryX }
+        ])
       : null
 
   // Network IO: read + write as two lines
   const networkIO =
     networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
-      ? generateChart(
-          'Network I/O (MB)',
-          'MB',
-          [
-            { label: 'Read', points: networkReadX },
-            { label: 'Write', points: networkWriteX }
-          ],
-          { colors: ['#ff7f00', '#9467bd'] }
-        )
+      ? generateChart('Network I/O (MB)', 'MB', [
+          { label: 'Read', points: networkReadX },
+          { label: 'Write', points: networkWriteX }
+        ])
       : null
 
   // Disk IO: read + write as two lines
   const diskIO =
     diskReadX && diskReadX.length && diskWriteX && diskWriteX.length
-      ? generateChart(
-          'Disk I/O (MB)',
-          'MB',
-          [
-            { label: 'Read', points: diskReadX },
-            { label: 'Write', points: diskWriteX }
-          ],
-          { colors: ['#be4d25', '#6c25be'] }
-        )
+      ? generateChart('Disk I/O (MB)', 'MB', [
+          { label: 'Read', points: diskReadX },
+          { label: 'Write', points: diskWriteX }
+        ])
       : null
 
   // Disk size: used amount only
   const diskSizeUsage =
     diskUsedX && diskUsedX.length
-      ? generateChart(
-          'Disk Usage (MB)',
-          'MB',
-          [{ label: 'Used', points: diskUsedX }],
-          { colors: ['#9467bd'] }
-        )
+      ? generateChart('Disk Usage (MB)', 'MB', [
+          { label: 'Used', points: diskUsedX }
+        ])
       : null
 
   const items: ReportItem[] = []
-
-  // Row 1: CPU + Memory
-  if (cpuLoad || memoryUsage) {
-    items.push({ type: 'heading', content: '### CPU & Memory Metrics' })
-    if (cpuLoad) items.push({ type: 'chart', chart: cpuLoad })
-    if (memoryUsage) items.push({ type: 'chart', chart: memoryUsage })
+  if (cpuLoad) {
+    items.push({ type: 'heading', content: '### CPU Metrics' })
+    items.push({ type: 'chart', chart: cpuLoad })
   }
-
-  // Row 2: Network IO + Disk IO
+  if (memoryUsage) {
+    items.push({ type: 'heading', content: '### Memory Metrics' })
+    items.push({ type: 'chart', chart: memoryUsage })
+  }
   if (networkIO || diskIO) {
     items.push({ type: 'heading', content: '### IO Metrics' })
-    if (networkIO) items.push({ type: 'chart', chart: networkIO })
-    if (diskIO) items.push({ type: 'chart', chart: diskIO })
+    if (networkIO) {
+      items.push({ type: 'text', content: '**Network I/O**' })
+      items.push({ type: 'chart', chart: networkIO })
+    }
+    if (diskIO) {
+      items.push({ type: 'text', content: '**Disk I/O**' })
+      items.push({ type: 'chart', chart: diskIO })
+    }
   }
-
-  // Disk size
   if (diskSizeUsage) {
     items.push({ type: 'heading', content: '### Disk Size Metrics' })
     items.push({ type: 'chart', chart: diskSizeUsage })

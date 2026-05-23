@@ -60,56 +60,16 @@ async function getCurrentJob(): Promise<WorkflowJobType | null> {
   return null
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 function renderReportItems(items: ReportItem[]): void {
-  let i = 0
-  while (i < items.length) {
-    const item = items[i]
-
+  for (const item of items) {
     if (item.type === 'heading' && item.content) {
       core.summary.addRaw(item.content + '\n')
-      i++
+    } else if (item.type === 'chart' && item.chart?.mermaid) {
+      core.summary.addCodeBlock(item.chart.mermaid, 'mermaid')
     } else if (item.type === 'text' && item.content) {
       core.summary.addRaw(item.content + '\n')
-      i++
     } else if (item.type === 'table' && item.content) {
       core.summary.addRaw(item.content + '\n')
-      i++
-    } else if (item.type === 'chart' && item.chart?.mermaid) {
-      // Collect consecutive charts into a group
-      const group: ReportItem[] = []
-      while (
-        i < items.length &&
-        items[i].type === 'chart' &&
-        items[i].chart?.mermaid
-      ) {
-        group.push(items[i])
-        i++
-      }
-
-      if (group.length >= 2) {
-        // Render side-by-side in an HTML table
-        let html = '<table><tr>\n'
-        for (const g of group) {
-          html += `<td width="${Math.floor(100 / group.length)}%">\n`
-          html += `<pre lang="mermaid"><code>\n${escapeHtml(g.chart!.mermaid)}</code></pre>\n`
-          html += '</td>\n'
-        }
-        html += '</tr></table>\n'
-        core.summary.addRaw(html)
-      } else {
-        // Single chart: render as normal code block
-        core.summary.addCodeBlock(group[0].chart!.mermaid, 'mermaid')
-      }
-    } else {
-      i++
     }
   }
 }

@@ -19,7 +19,6 @@ export interface ChartResult {
 
 export interface ChartOptions {
   yMax?: number
-  colors?: string[]
 }
 
 export function generateChart(
@@ -33,35 +32,12 @@ export function generateChart(
   }
 
   const allPoints = series[0].points
-  const total = allPoints.length
-
-  // Show at most 8 real labels; hidden positions use "_" to avoid overlap
-  const maxLabels = 8
-  const step = total <= maxLabels ? 1 : Math.ceil(total / maxLabels)
-  const timeLabels = allPoints.map((p, i) => {
-    if (i === 0 || i === total - 1 || i % step === 0) {
-      return `"${formatTime(p.x)}"`
-    }
-    return '"_"'
-  })
-
-  // Color theme via init directive
-  const colors = options?.colors
-  let initDirective = ''
-  if (colors && colors.length > 0) {
-    const themeVars: Record<string, string> = {}
-    colors.forEach((c, i) => {
-      themeVars[`xyChart.dataColor${i + 1}`] = c
-    })
-    initDirective = `%%{init: { "theme": "base", "themeVariables": ${JSON.stringify(themeVars)} }}%%\n`
-  }
+  const timeLabels = allPoints.map(p => `"${formatTime(p.x)}"`)
 
   // Y-axis with optional fixed range
   const yAxisRange = options?.yMax ? `0 --> ${options.yMax}` : ''
 
-  let mermaid = ''
-  if (initDirective) mermaid += initDirective
-  mermaid += 'xychart-beta\n'
+  let mermaid = 'xychart-beta\n'
   mermaid += `    title "${title}"\n`
   mermaid += `    x-axis [${timeLabels.join(', ')}]\n`
   mermaid += yAxisRange
@@ -74,9 +50,4 @@ export function generateChart(
   }
 
   return { id: generateId(), mermaid }
-}
-
-/** Wrap mermaid source in a fenced code block string (for embedding in raw HTML/markdown). */
-export function mermaidCodeBlock(mermaid: string): string {
-  return '```mermaid\n' + mermaid + '```\n'
 }
