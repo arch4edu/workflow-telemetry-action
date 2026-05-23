@@ -49,30 +49,30 @@ export function generateChart(
     indices.push(total - 1)
   }
 
-  // Show ~8 real labels; hidden positions use incrementing spaces for uniqueness
+  // Show ~8 real labels; hidden positions use incrementing underscores for uniqueness
   const sampled = indices.length
   const maxLabels = 8
   const labelStep = sampled <= maxLabels ? 1 : Math.ceil(sampled / maxLabels)
-  let spaceCount = 1
+  let hiddenCount = 1
   const timeLabels = indices.map((idx, i) => {
     if (i === 0 || i === sampled - 1 || i % labelStep === 0) {
       return `"${formatTime(allPoints[idx].x)}"`
     }
-    return `"${' '.repeat(spaceCount++)}"`
+    return `"${'_'.repeat(hiddenCount++)}"`
   })
 
   // Y-axis with optional fixed range
   const yAxisRange = options?.yMax ? `0 --> ${options.yMax}` : ''
 
-  // Color palette via init directive (keeps default theme intact)
-  let initDirective = ''
+  // Color palette via YAML frontmatter config
+  let frontmatter = ''
   if (options?.colors && options.colors.length > 0) {
     const palette = options.colors.join(', ')
-    initDirective = `%%{init: {"xyChart": {"plotColorPalette": "${palette}"}}}%%\n`
+    frontmatter = `---\nconfig:\n  themeVariables:\n    xyChart:\n      plotColorPalette: "${palette}"\n---\n`
   }
 
   let mermaid = ''
-  if (initDirective) mermaid += initDirective
+  if (frontmatter) mermaid += frontmatter
   mermaid += 'xychart-beta\n'
   mermaid += `    title "${title}"\n`
   mermaid += `    x-axis [${timeLabels.join(', ')}]\n`
