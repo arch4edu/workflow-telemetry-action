@@ -35,14 +35,14 @@ export function generateChart(
   const allPoints = series[0].points
   const total = allPoints.length
 
-  // Sparse labels: show at most 8 labels to avoid overlap
+  // Show at most 8 real labels; hidden positions use "_" to avoid overlap
   const maxLabels = 8
   const step = total <= maxLabels ? 1 : Math.ceil(total / maxLabels)
   const timeLabels = allPoints.map((p, i) => {
     if (i === 0 || i === total - 1 || i % step === 0) {
       return `"${formatTime(p.x)}"`
     }
-    return '""'
+    return '"_"'
   })
 
   // Color theme via init directive
