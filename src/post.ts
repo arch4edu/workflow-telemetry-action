@@ -3,7 +3,6 @@ import * as github from '@actions/github'
 import { Octokit } from '@octokit/action'
 import * as stepTracer from './stepTracer'
 import * as statCollector from './statCollector'
-import * as processTracer from './processTracer'
 import * as logger from './logger'
 import { WorkflowJobType } from './interfaces'
 
@@ -130,17 +129,12 @@ async function run(): Promise<void> {
     await stepTracer.finish(currentJob)
     // Finish stat collector
     await statCollector.finish(currentJob)
-    // Finish process tracer
-    await processTracer.finish(currentJob)
 
     // Report step tracer
     const stepTracerContent: string | null = await stepTracer.report(currentJob)
     // Report stat collector
     const stepCollectorContent: string | null =
       await statCollector.report(currentJob)
-    // Report process tracer
-    const procTracerContent: string | null =
-      await processTracer.report(currentJob)
 
     let allContent = ''
 
@@ -149,9 +143,6 @@ async function run(): Promise<void> {
     }
     if (stepCollectorContent) {
       allContent = allContent.concat(stepCollectorContent, '\n')
-    }
-    if (procTracerContent) {
-      allContent = allContent.concat(procTracerContent, '\n')
     }
 
     await reportAll(currentJob, allContent)
