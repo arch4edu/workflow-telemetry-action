@@ -42,7 +42,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const { memoryPercentX, totalMemoryMb } = await getMemoryStats()
   const { networkReadX, networkWriteX } = await getNetworkStats()
   const { diskReadX, diskWriteX } = await getDiskStats()
-  const { diskAvailableX, diskUsedX } = await getDiskSizeStats()
+  const { diskPercentX, totalDiskMb } = await getDiskSizeStats()
 
   // CPU core count
   const cpuCount = require('os').cpus().length
@@ -56,18 +56,25 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
         }))
       : null
 
-  // Combined CPU + Memory chart (both as percentage)
-  const cpuMemChart =
-    cpuTotalLoad && cpuTotalLoad.length && memoryPercentX && memoryPercentX.length
-      ? generateChart('CPU & Memory (%)', 'Percentage', [
-          { label: 'CPU', points: cpuTotalLoad },
-          { label: 'Memory', points: memoryPercentX }
-        ], { yMax: 100, colors: ['#ff0000', '#0000ff'] })
-      : cpuTotalLoad && cpuTotalLoad.length
-        ? generateChart('CPU Load (%)', 'Percentage', [
-            { label: 'CPU', points: cpuTotalLoad }
-          ], { yMax: 100, colors: ['#ff0000'] })
-        : null
+  // Combined CPU + Memory + Disk chart (all as percentage)
+  const seriesList: Array<{ label: string; points: ProcessedStats[] }> = []
+  const colorList: string[] = []
+  if (cpuTotalLoad && cpuTotalLoad.length) {
+    seriesList.push({ label: 'CPU', points: cpuTotalLoad })
+    colorList.push('#ff0000')
+  }
+  if (memoryPercentX && memoryPercentX.length) {
+    seriesList.push({ label: 'Memory', points: memoryPercentX })
+    colorList.push('#0000ff')
+  }
+  if (diskPercentX && diskPercentX.length) {
+    seriesList.push({ label: 'Disk', points: diskPercentX })
+    colorList.push('#00aa00')
+  }
+
+  const mainChart = seriesList.length > 0
+    ? generateChart('System Usage (%)', 'Percentage', seriesList, { yMax: 100, colors: colorList })
+    : null
 
   // Network IO: read + write as two lines
   const networkIO =
@@ -87,21 +94,14 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
         ], { colors: ['#ff0000', '#0000ff'] })
       : null
 
-  // Disk size: used amount only
-  const diskSizeUsage =
-    diskUsedX && diskUsedX.length
-      ? generateChart('Disk Usage (MB)', 'MB', [
-          { label: 'Used', points: diskUsedX }
-        ], { colors: ['#0000ff'] })
-      : null
-
   const items: ReportItem[] = []
-  if (cpuMemChart) {
-    items.push({ type: 'heading', content: '### CPU & Memory Metrics' })
+  if (mainChart) {
+    items.push({ type: 'heading', content: '### System Metrics' })
     const totalMemGb = (totalMemoryMb / 1024).toFixed(1)
-    items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB**` })
-    items.push({ type: 'chart', chart: cpuMemChart })
-    items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory' })
+    const totalDiskGb = (totalDiskMb / 1024).toFixed(1)
+    items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB** | Total Disk: **${totalDiskGb} GB**` })
+    items.push({ type: 'chart', chart: mainChart })
+    items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory &nbsp;&nbsp; 🟢 Disk' })
   }
   if (networkIO || diskIO) {
     items.push({ type: 'heading', content: '### IO Metrics' })
@@ -115,10 +115,6 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
       items.push({ type: 'chart', chart: diskIO })
       items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' })
     }
-  }
-  if (diskSizeUsage) {
-    items.push({ type: 'heading', content: '### Disk Size Metrics' })
-    items.push({ type: 'chart', chart: diskSizeUsage })
   }
 
   return items
@@ -242,9 +238,11 @@ async function getDiskStats(): Promise<ProcessedDiskStats> {
   return { diskReadX, diskWriteX }
 }
 
-async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
+async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats & { diskPercentX: ProcessedStats[], totalDiskMb: number }> {
   const diskAvailableX: ProcessedStats[] = []
   const diskUsedX: ProcessedStats[] = []
+  const diskPercentX: ProcessedStats[] = []
+  let totalDiskMb = 0
 
   logger.debug('Getting disk size stats ...')
   const response = await axios.get(
@@ -255,21 +253,17 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
   }
 
   response.data.forEach((element: DiskSizeStats) => {
-    diskAvailableX.push({
-      x: element.time,
-      y:
-        element.availableSizeMb && element.availableSizeMb > 0
-          ? element.availableSizeMb
-          : 0
-    })
+    const used = element.usedSizeMb && element.usedSizeMb > 0 ? element.usedSizeMb : 0
+    const available = element.availableSizeMb && element.availableSizeMb > 0 ? element.availableSizeMb : 0
+    const total = used + available
+    if (total > 0) totalDiskMb = total
 
-    diskUsedX.push({
-      x: element.time,
-      y: element.usedSizeMb && element.usedSizeMb > 0 ? element.usedSizeMb : 0
-    })
+    diskAvailableX.push({ x: element.time, y: available })
+    diskUsedX.push({ x: element.time, y: used })
+    diskPercentX.push({ x: element.time, y: total > 0 ? (used / total) * 100 : 0 })
   })
 
-  return { diskAvailableX, diskUsedX }
+  return { diskAvailableX, diskUsedX, diskPercentX, totalDiskMb }
 }
 
 ///////////////////////////

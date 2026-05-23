@@ -28413,7 +28413,7 @@ function reportWorkflowMetrics() {
         const { memoryPercentX, totalMemoryMb } = yield getMemoryStats();
         const { networkReadX, networkWriteX } = yield getNetworkStats();
         const { diskReadX, diskWriteX } = yield getDiskStats();
-        const { diskAvailableX, diskUsedX } = yield getDiskSizeStats();
+        const { diskPercentX, totalDiskMb } = yield getDiskSizeStats();
         // CPU core count
         const cpuCount = (__nccwpck_require__(2037).cpus)().length;
         // CPU: total load = user + system
@@ -28426,17 +28426,24 @@ function reportWorkflowMetrics() {
                 });
             })
             : null;
-        // Combined CPU + Memory chart (both as percentage)
-        const cpuMemChart = cpuTotalLoad && cpuTotalLoad.length && memoryPercentX && memoryPercentX.length
-            ? (0, chartGenerator_1.generateChart)('CPU & Memory (%)', 'Percentage', [
-                { label: 'CPU', points: cpuTotalLoad },
-                { label: 'Memory', points: memoryPercentX }
-            ], { yMax: 100, colors: ['#ff0000', '#0000ff'] })
-            : cpuTotalLoad && cpuTotalLoad.length
-                ? (0, chartGenerator_1.generateChart)('CPU Load (%)', 'Percentage', [
-                    { label: 'CPU', points: cpuTotalLoad }
-                ], { yMax: 100, colors: ['#ff0000'] })
-                : null;
+        // Combined CPU + Memory + Disk chart (all as percentage)
+        const seriesList = [];
+        const colorList = [];
+        if (cpuTotalLoad && cpuTotalLoad.length) {
+            seriesList.push({ label: 'CPU', points: cpuTotalLoad });
+            colorList.push('#ff0000');
+        }
+        if (memoryPercentX && memoryPercentX.length) {
+            seriesList.push({ label: 'Memory', points: memoryPercentX });
+            colorList.push('#0000ff');
+        }
+        if (diskPercentX && diskPercentX.length) {
+            seriesList.push({ label: 'Disk', points: diskPercentX });
+            colorList.push('#00aa00');
+        }
+        const mainChart = seriesList.length > 0
+            ? (0, chartGenerator_1.generateChart)('System Usage (%)', 'Percentage', seriesList, { yMax: 100, colors: colorList })
+            : null;
         // Network IO: read + write as two lines
         const networkIO = networkReadX && networkReadX.length && networkWriteX && networkWriteX.length
             ? (0, chartGenerator_1.generateChart)('Network I/O (MB)', 'MB', [
@@ -28451,19 +28458,14 @@ function reportWorkflowMetrics() {
                 { label: 'Write', points: diskWriteX }
             ], { colors: ['#ff0000', '#0000ff'] })
             : null;
-        // Disk size: used amount only
-        const diskSizeUsage = diskUsedX && diskUsedX.length
-            ? (0, chartGenerator_1.generateChart)('Disk Usage (MB)', 'MB', [
-                { label: 'Used', points: diskUsedX }
-            ], { colors: ['#0000ff'] })
-            : null;
         const items = [];
-        if (cpuMemChart) {
-            items.push({ type: 'heading', content: '### CPU & Memory Metrics' });
+        if (mainChart) {
+            items.push({ type: 'heading', content: '### System Metrics' });
             const totalMemGb = (totalMemoryMb / 1024).toFixed(1);
-            items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB**` });
-            items.push({ type: 'chart', chart: cpuMemChart });
-            items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory' });
+            const totalDiskGb = (totalDiskMb / 1024).toFixed(1);
+            items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB** | Total Disk: **${totalDiskGb} GB**` });
+            items.push({ type: 'chart', chart: mainChart });
+            items.push({ type: 'text', content: '🔴 CPU &nbsp;&nbsp; 🔵 Memory &nbsp;&nbsp; 🟢 Disk' });
         }
         if (networkIO || diskIO) {
             items.push({ type: 'heading', content: '### IO Metrics' });
@@ -28477,10 +28479,6 @@ function reportWorkflowMetrics() {
                 items.push({ type: 'chart', chart: diskIO });
                 items.push({ type: 'text', content: '🔴 Read &nbsp;&nbsp; 🔵 Write' });
             }
-        }
-        if (diskSizeUsage) {
-            items.push({ type: 'heading', content: '### Disk Size Metrics' });
-            items.push({ type: 'chart', chart: diskSizeUsage });
         }
         return items;
     });
@@ -28587,24 +28585,24 @@ function getDiskSizeStats() {
     return __awaiter(this, void 0, void 0, function* () {
         const diskAvailableX = [];
         const diskUsedX = [];
+        const diskPercentX = [];
+        let totalDiskMb = 0;
         logger.debug('Getting disk size stats ...');
         const response = yield axios_1.default.get(`http://127.0.0.1:${STAT_SERVER_PORT}/disk_size`);
         if (logger.isDebugEnabled()) {
             logger.debug(`Got disk size stats: ${JSON.stringify(response.data)}`);
         }
         response.data.forEach((element) => {
-            diskAvailableX.push({
-                x: element.time,
-                y: element.availableSizeMb && element.availableSizeMb > 0
-                    ? element.availableSizeMb
-                    : 0
-            });
-            diskUsedX.push({
-                x: element.time,
-                y: element.usedSizeMb && element.usedSizeMb > 0 ? element.usedSizeMb : 0
-            });
+            const used = element.usedSizeMb && element.usedSizeMb > 0 ? element.usedSizeMb : 0;
+            const available = element.availableSizeMb && element.availableSizeMb > 0 ? element.availableSizeMb : 0;
+            const total = used + available;
+            if (total > 0)
+                totalDiskMb = total;
+            diskAvailableX.push({ x: element.time, y: available });
+            diskUsedX.push({ x: element.time, y: used });
+            diskPercentX.push({ x: element.time, y: total > 0 ? (used / total) * 100 : 0 });
         });
-        return { diskAvailableX, diskUsedX };
+        return { diskAvailableX, diskUsedX, diskPercentX, totalDiskMb };
     });
 }
 ///////////////////////////
