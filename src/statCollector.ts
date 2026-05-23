@@ -20,7 +20,7 @@ import {
   WorkflowJobType
 } from './interfaces'
 import * as logger from './logger'
-import { log } from 'console'
+import { generateLineChart, generateStackedAreaChart } from './chartGenerator'
 
 const STAT_SERVER_PORT = 7777
 
@@ -59,7 +59,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const cpuLoad =
     userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
-      ? await getStackedAreaGraph({
+      ? getStackedAreaGraph({
           label: 'CPU Load (%)',
           axisColor,
           areas: [
@@ -82,7 +82,7 @@ async function reportWorkflowMetrics(): Promise<string> {
     activeMemoryX.length &&
     availableMemoryX &&
     availableMemoryX.length
-      ? await getStackedAreaGraph({
+      ? getStackedAreaGraph({
           label: 'Memory Usage (MB)',
           axisColor,
           areas: [
@@ -102,7 +102,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const networkIORead =
     networkReadX && networkReadX.length
-      ? await getLineGraph({
+      ? getLineGraph({
           label: 'Network I/O Read (MB)',
           axisColor,
           line: {
@@ -115,7 +115,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const networkIOWrite =
     networkWriteX && networkWriteX.length
-      ? await getLineGraph({
+      ? getLineGraph({
           label: 'Network I/O Write (MB)',
           axisColor,
           line: {
@@ -128,7 +128,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const diskIORead =
     diskReadX && diskReadX.length
-      ? await getLineGraph({
+      ? getLineGraph({
           label: 'Disk I/O Read (MB)',
           axisColor,
           line: {
@@ -141,7 +141,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const diskIOWrite =
     diskWriteX && diskWriteX.length
-      ? await getLineGraph({
+      ? getLineGraph({
           label: 'Disk I/O Write (MB)',
           axisColor,
           line: {
@@ -154,7 +154,7 @@ async function reportWorkflowMetrics(): Promise<string> {
 
   const diskSizeUsage =
     diskUsedX && diskUsedX.length && diskAvailableX && diskAvailableX.length
-      ? await getStackedAreaGraph({
+      ? getStackedAreaGraph({
           label: 'Disk Usage (MB)',
           axisColor,
           areas: [
@@ -355,69 +355,14 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
   return { diskAvailableX, diskUsedX }
 }
 
-async function getLineGraph(options: LineGraphOptions): Promise<GraphResponse> {
-  const payload = {
-    options: {
-      width: 1000,
-      height: 500,
-      xAxis: {
-        label: 'Time'
-      },
-      yAxis: {
-        label: options.label
-      },
-      timeTicks: {
-        unit: 'auto'
-      }
-    },
-    lines: [options.line]
-  }
-
-  let response = null
-  try {
-    response = await axios.put(
-      'https://api.globadge.com/v1/chartgen/line/time',
-      payload
-    )
-  } catch (error: any) {
-    logger.error(error)
-    logger.error(`getLineGraph ${JSON.stringify(payload)}`)
-  }
-
-  return response?.data
+function getLineGraph(options: LineGraphOptions): GraphResponse {
+  return generateLineChart(options.label, options.axisColor, options.line)
 }
 
-async function getStackedAreaGraph(
+function getStackedAreaGraph(
   options: StackedAreaGraphOptions
-): Promise<GraphResponse> {
-  const payload = {
-    options: {
-      width: 1000,
-      height: 500,
-      xAxis: {
-        label: 'Time'
-      },
-      yAxis: {
-        label: options.label
-      },
-      timeTicks: {
-        unit: 'auto'
-      }
-    },
-    areas: options.areas
-  }
-
-  let response = null
-  try {
-    response = await axios.put(
-      'https://api.globadge.com/v1/chartgen/stacked-area/time',
-      payload
-    )
-  } catch (error: any) {
-    logger.error(error)
-    logger.error(`getStackedAreaGraph ${JSON.stringify(payload)}`)
-  }
-  return response?.data
+): GraphResponse {
+  return generateStackedAreaChart(options.label, options.axisColor, options.areas)
 }
 
 ///////////////////////////

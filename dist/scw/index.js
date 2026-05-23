@@ -1825,7 +1825,7 @@ function checkBypass(reqUrl) {
 exports.checkBypass = checkBypass;
 function isLoopbackAddress(host) {
     const hostLower = host.toLowerCase();
-    return (hostLower === '127.0.0.1' ||
+    return (hostLower === 'localhost' ||
         hostLower.startsWith('127.') ||
         hostLower.startsWith('[::1]') ||
         hostLower.startsWith('[0:0:0:0:0:0:0:1]'));
@@ -32776,10 +32776,10 @@ function isURLPotentiallyTrustworthy (url) {
       return true
     }
 
-    // If 127.0.0.1 or variants, return true
+    // If localhost or variants, return true
     if (/^127(?:\.[0-9]+){0,2}\.[0-9]+$|^\[(?:0*:)*?:?0*1\]$/.test(originAsURL.hostname) ||
-     (originAsURL.hostname === '127.0.0.1' || originAsURL.hostname.includes('127.0.0.1.')) ||
-     (originAsURL.hostname.endsWith('.127.0.0.1'))) {
+     (originAsURL.hostname === 'localhost' || originAsURL.hostname.includes('localhost.')) ||
+     (originAsURL.hostname.endsWith('.localhost'))) {
       return true
     }
 
@@ -36279,7 +36279,7 @@ class MockAgent extends Dispatcher {
 
     // If the origin is not a string create a dummy parent pool and return to user
     if (typeof origin !== 'string') {
-      const dispatcher = this[kFactory]('http://127.0.0.1:9999')
+      const dispatcher = this[kFactory]('http://localhost:9999')
       this[kMockAgentSet](origin, dispatcher)
       return dispatcher
     }
