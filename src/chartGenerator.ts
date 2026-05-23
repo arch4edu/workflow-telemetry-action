@@ -82,10 +82,10 @@ function scaleY(value: number, maxY: number): number {
   return PADDING.top + PLOT_HEIGHT - (value / maxY) * PLOT_HEIGHT
 }
 
-function buildSvgHeader(axisColor: string): string {
-  const bgColor = axisColor === '#FFFFFF' ? '#0d1117' : '#ffffff'
+function buildSvgHeader(): string {
+  const axisColor = '#000000'
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CHART_WIDTH}" height="${CHART_HEIGHT}" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}">
-<rect width="${CHART_WIDTH}" height="${CHART_HEIGHT}" fill="${bgColor}"/>
+<rect width="${CHART_WIDTH}" height="${CHART_HEIGHT}" fill="#ffffff"/>
 <style>
   .axis-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; fill: ${axisColor}; }
   .title-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: bold; fill: ${axisColor}; }
@@ -95,12 +95,12 @@ function buildSvgHeader(axisColor: string): string {
 }
 
 function buildAxes(
-  axisColor: string,
   yLabel: string,
   minTime: number,
   maxTime: number,
   maxY: number
 ): string {
+  const axisColor = '#000000'
   const lines: string[] = []
 
   // Y axis
@@ -191,7 +191,6 @@ function generateId(): string {
 
 export function generateLineChart(
   yLabel: string,
-  axisColor: string,
   line: LineConfig
 ): GraphResponse {
   const points = line.points
@@ -207,8 +206,8 @@ export function generateLineChart(
   const pathD = pointsToPath(points, minTime, maxTime, maxY)
 
   const svg = [
-    buildSvgHeader(axisColor),
-    buildAxes(axisColor, yLabel, minTime, maxTime, maxY),
+    buildSvgHeader(),
+    buildAxes(yLabel, minTime, maxTime, maxY),
     buildLegend([{ label: line.label, color: line.color }]),
     `<path d="${pathD}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
     '</svg>'
@@ -219,7 +218,6 @@ export function generateLineChart(
 
 export function generateStackedAreaChart(
   yLabel: string,
-  axisColor: string,
   areas: AreaConfig[]
 ): GraphResponse {
   if (areas.length === 0 || areas[0].points.length === 0) {
@@ -244,8 +242,8 @@ export function generateStackedAreaChart(
   const maxY = computeNiceMax(rawMaxY)
 
   const svgParts: string[] = [
-    buildSvgHeader(axisColor),
-    buildAxes(axisColor, yLabel, minTime, maxTime, maxY),
+    buildSvgHeader(),
+    buildAxes(yLabel, minTime, maxTime, maxY),
     buildLegend(areas.map(a => ({ label: a.label, color: a.color })))
   ]
 

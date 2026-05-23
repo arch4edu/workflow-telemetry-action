@@ -28272,10 +28272,10 @@ function scaleY(value, maxY) {
         return PADDING.top + PLOT_HEIGHT;
     return PADDING.top + PLOT_HEIGHT - (value / maxY) * PLOT_HEIGHT;
 }
-function buildSvgHeader(axisColor) {
-    const bgColor = axisColor === '#FFFFFF' ? '#0d1117' : '#ffffff';
+function buildSvgHeader() {
+    const axisColor = '#000000';
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${CHART_WIDTH}" height="${CHART_HEIGHT}" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}">
-<rect width="${CHART_WIDTH}" height="${CHART_HEIGHT}" fill="${bgColor}"/>
+<rect width="${CHART_WIDTH}" height="${CHART_HEIGHT}" fill="#ffffff"/>
 <style>
   .axis-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; fill: ${axisColor}; }
   .title-label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: bold; fill: ${axisColor}; }
@@ -28283,7 +28283,8 @@ function buildSvgHeader(axisColor) {
   .grid-line { stroke: ${axisColor}; stroke-opacity: 0.15; stroke-width: 1; }
 </style>`;
 }
-function buildAxes(axisColor, yLabel, minTime, maxTime, maxY) {
+function buildAxes(yLabel, minTime, maxTime, maxY) {
+    const axisColor = '#000000';
     const lines = [];
     // Y axis
     lines.push(`<line x1="${PADDING.left}" y1="${PADDING.top}" x2="${PADDING.left}" y2="${PADDING.top + PLOT_HEIGHT}" stroke="${axisColor}" stroke-width="1"/>`);
@@ -28339,7 +28340,7 @@ function svgToDataUrl(svg) {
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function generateLineChart(yLabel, axisColor, line) {
+function generateLineChart(yLabel, line) {
     const points = line.points;
     if (points.length === 0) {
         return { id: generateId(), url: '' };
@@ -28350,8 +28351,8 @@ function generateLineChart(yLabel, axisColor, line) {
     const maxY = computeNiceMax(rawMaxY);
     const pathD = pointsToPath(points, minTime, maxTime, maxY);
     const svg = [
-        buildSvgHeader(axisColor),
-        buildAxes(axisColor, yLabel, minTime, maxTime, maxY),
+        buildSvgHeader(),
+        buildAxes(yLabel, minTime, maxTime, maxY),
         buildLegend([{ label: line.label, color: line.color }]),
         `<path d="${pathD}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
         '</svg>'
@@ -28359,7 +28360,7 @@ function generateLineChart(yLabel, axisColor, line) {
     return { id: generateId(), url: svgToDataUrl(svg) };
 }
 exports.generateLineChart = generateLineChart;
-function generateStackedAreaChart(yLabel, axisColor, areas) {
+function generateStackedAreaChart(yLabel, areas) {
     if (areas.length === 0 || areas[0].points.length === 0) {
         return { id: generateId(), url: '' };
     }
@@ -28379,8 +28380,8 @@ function generateStackedAreaChart(yLabel, axisColor, areas) {
     }
     const maxY = computeNiceMax(rawMaxY);
     const svgParts = [
-        buildSvgHeader(axisColor),
-        buildAxes(axisColor, yLabel, minTime, maxTime, maxY),
+        buildSvgHeader(),
+        buildAxes(yLabel, minTime, maxTime, maxY),
         buildLegend(areas.map(a => ({ label: a.label, color: a.color })))
     ];
     // Build stacked areas from bottom to top
@@ -28585,8 +28586,6 @@ const core = __importStar(__nccwpck_require__(2186));
 const logger = __importStar(__nccwpck_require__(4636));
 const chartGenerator_1 = __nccwpck_require__(7318);
 const STAT_SERVER_PORT = 7777;
-const BLACK = '#000000';
-const WHITE = '#FFFFFF';
 function triggerStatCollect() {
     return __awaiter(this, void 0, void 0, function* () {
         logger.debug('Triggering stat collect ...');
@@ -28598,18 +28597,6 @@ function triggerStatCollect() {
 }
 function reportWorkflowMetrics() {
     return __awaiter(this, void 0, void 0, function* () {
-        const theme = core.getInput('theme', { required: false });
-        let axisColor = BLACK;
-        switch (theme) {
-            case 'light':
-                axisColor = BLACK;
-                break;
-            case 'dark':
-                axisColor = WHITE;
-                break;
-            default:
-                core.warning(`Invalid theme: ${theme}`);
-        }
         const { userLoadX, systemLoadX } = yield getCPUStats();
         const { activeMemoryX, availableMemoryX } = yield getMemoryStats();
         const { networkReadX, networkWriteX } = yield getNetworkStats();
@@ -28618,7 +28605,6 @@ function reportWorkflowMetrics() {
         const cpuLoad = userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
             ? getStackedAreaGraph({
                 label: 'CPU Load (%)',
-                axisColor,
                 areas: [
                     {
                         label: 'User Load',
@@ -28639,7 +28625,6 @@ function reportWorkflowMetrics() {
             availableMemoryX.length
             ? getStackedAreaGraph({
                 label: 'Memory Usage (MB)',
-                axisColor,
                 areas: [
                     {
                         label: 'Used',
@@ -28657,7 +28642,6 @@ function reportWorkflowMetrics() {
         const networkIORead = networkReadX && networkReadX.length
             ? getLineGraph({
                 label: 'Network I/O Read (MB)',
-                axisColor,
                 line: {
                     label: 'Read',
                     color: '#be4d25',
@@ -28668,7 +28652,6 @@ function reportWorkflowMetrics() {
         const networkIOWrite = networkWriteX && networkWriteX.length
             ? getLineGraph({
                 label: 'Network I/O Write (MB)',
-                axisColor,
                 line: {
                     label: 'Write',
                     color: '#6c25be',
@@ -28679,7 +28662,6 @@ function reportWorkflowMetrics() {
         const diskIORead = diskReadX && diskReadX.length
             ? getLineGraph({
                 label: 'Disk I/O Read (MB)',
-                axisColor,
                 line: {
                     label: 'Read',
                     color: '#be4d25',
@@ -28690,7 +28672,6 @@ function reportWorkflowMetrics() {
         const diskIOWrite = diskWriteX && diskWriteX.length
             ? getLineGraph({
                 label: 'Disk I/O Write (MB)',
-                axisColor,
                 line: {
                     label: 'Write',
                     color: '#6c25be',
@@ -28701,7 +28682,6 @@ function reportWorkflowMetrics() {
         const diskSizeUsage = diskUsedX && diskUsedX.length && diskAvailableX && diskAvailableX.length
             ? getStackedAreaGraph({
                 label: 'Disk Usage (MB)',
-                axisColor,
                 areas: [
                     {
                         label: 'Used',
@@ -28855,10 +28835,10 @@ function getDiskSizeStats() {
     });
 }
 function getLineGraph(options) {
-    return (0, chartGenerator_1.generateLineChart)(options.label, options.axisColor, options.line);
+    return (0, chartGenerator_1.generateLineChart)(options.label, options.line);
 }
 function getStackedAreaGraph(options) {
-    return (0, chartGenerator_1.generateStackedAreaChart)(options.label, options.axisColor, options.areas);
+    return (0, chartGenerator_1.generateStackedAreaChart)(options.label, options.areas);
 }
 ///////////////////////////
 function start() {

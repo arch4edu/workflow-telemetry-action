@@ -24,9 +24,6 @@ import { generateLineChart, generateStackedAreaChart } from './chartGenerator'
 
 const STAT_SERVER_PORT = 7777
 
-const BLACK = '#000000'
-const WHITE = '#FFFFFF'
-
 async function triggerStatCollect(): Promise<void> {
   logger.debug('Triggering stat collect ...')
   const response = await axios.post(
@@ -38,19 +35,6 @@ async function triggerStatCollect(): Promise<void> {
 }
 
 async function reportWorkflowMetrics(): Promise<string> {
-  const theme: string = core.getInput('theme', { required: false })
-  let axisColor = BLACK
-  switch (theme) {
-    case 'light':
-      axisColor = BLACK
-      break
-    case 'dark':
-      axisColor = WHITE
-      break
-    default:
-      core.warning(`Invalid theme: ${theme}`)
-  }
-
   const { userLoadX, systemLoadX } = await getCPUStats()
   const { activeMemoryX, availableMemoryX } = await getMemoryStats()
   const { networkReadX, networkWriteX } = await getNetworkStats()
@@ -61,7 +45,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     userLoadX && userLoadX.length && systemLoadX && systemLoadX.length
       ? getStackedAreaGraph({
           label: 'CPU Load (%)',
-          axisColor,
           areas: [
             {
               label: 'User Load',
@@ -84,7 +67,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     availableMemoryX.length
       ? getStackedAreaGraph({
           label: 'Memory Usage (MB)',
-          axisColor,
           areas: [
             {
               label: 'Used',
@@ -104,7 +86,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     networkReadX && networkReadX.length
       ? getLineGraph({
           label: 'Network I/O Read (MB)',
-          axisColor,
           line: {
             label: 'Read',
             color: '#be4d25',
@@ -117,7 +98,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     networkWriteX && networkWriteX.length
       ? getLineGraph({
           label: 'Network I/O Write (MB)',
-          axisColor,
           line: {
             label: 'Write',
             color: '#6c25be',
@@ -130,7 +110,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     diskReadX && diskReadX.length
       ? getLineGraph({
           label: 'Disk I/O Read (MB)',
-          axisColor,
           line: {
             label: 'Read',
             color: '#be4d25',
@@ -143,7 +122,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     diskWriteX && diskWriteX.length
       ? getLineGraph({
           label: 'Disk I/O Write (MB)',
-          axisColor,
           line: {
             label: 'Write',
             color: '#6c25be',
@@ -156,7 +134,6 @@ async function reportWorkflowMetrics(): Promise<string> {
     diskUsedX && diskUsedX.length && diskAvailableX && diskAvailableX.length
       ? getStackedAreaGraph({
           label: 'Disk Usage (MB)',
-          axisColor,
           areas: [
             {
               label: 'Used',
@@ -356,13 +333,13 @@ async function getDiskSizeStats(): Promise<ProcessedDiskSizeStats> {
 }
 
 function getLineGraph(options: LineGraphOptions): GraphResponse {
-  return generateLineChart(options.label, options.axisColor, options.line)
+  return generateLineChart(options.label, options.line)
 }
 
 function getStackedAreaGraph(
   options: StackedAreaGraphOptions
 ): GraphResponse {
-  return generateStackedAreaChart(options.label, options.axisColor, options.areas)
+  return generateStackedAreaChart(options.label, options.areas)
 }
 
 ///////////////////////////
