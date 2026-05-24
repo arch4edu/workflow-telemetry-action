@@ -1,11 +1,10 @@
 import { ProcessedStats } from './interfaces'
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp)
-  const h = date.getHours().toString().padStart(2, '0')
-  const m = date.getMinutes().toString().padStart(2, '0')
-  const s = date.getSeconds().toString().padStart(2, '0')
-  return `${h}:${m}:${s}`
+function formatRelativeTime(timestamp: number, startTime: number): string {
+  const elapsed = Math.max(0, Math.round((timestamp - startTime) / 1000))
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  return `+${m}:${s.toString().padStart(2, '0')}`
 }
 
 function generateId(): string {
@@ -68,9 +67,10 @@ export function generateChart(
     if (i !== 0 && showAtStep.has(i)) showAtStep.delete(i)
   }
 
+  const startTime = allPoints[0].x
   const timeLabels = indices.map((idx, i) => {
     if (showAtStep.has(i)) {
-      return `"${formatTime(allPoints[idx].x)}"`
+      return `"${formatRelativeTime(allPoints[idx].x, startTime)}"`
     }
     // Alternating pattern: odd positions space, even positions underscore
     const len = hiddenCount++

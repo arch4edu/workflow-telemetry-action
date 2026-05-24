@@ -38035,12 +38035,11 @@ function wrappy (fn, cb) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateChart = void 0;
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const h = date.getHours().toString().padStart(2, '0');
-    const m = date.getMinutes().toString().padStart(2, '0');
-    const s = date.getSeconds().toString().padStart(2, '0');
-    return `${h}:${m}:${s}`;
+function formatRelativeTime(timestamp, startTime) {
+    const elapsed = Math.max(0, Math.round((timestamp - startTime) / 1000));
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    return `+${m}:${s.toString().padStart(2, '0')}`;
 }
 function generateId() {
     return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -38084,9 +38083,10 @@ function generateChart(title, yLabel, series, options) {
         if (i !== 0 && showAtStep.has(i))
             showAtStep.delete(i);
     }
+    const startTime = allPoints[0].x;
     const timeLabels = indices.map((idx, i) => {
         if (showAtStep.has(i)) {
-            return `"${formatTime(allPoints[idx].x)}"`;
+            return `"${formatRelativeTime(allPoints[idx].x, startTime)}"`;
         }
         // Alternating pattern: odd positions space, even positions underscore
         const len = hiddenCount++;
@@ -38276,16 +38276,18 @@ function renderReportItems(items) {
     var _a;
     for (const item of items) {
         if (item.type === 'heading' && item.content) {
-            core.summary.addRaw(item.content + '\n');
+            core.summary.addRaw('\n' + item.content + '\n\n');
         }
         else if (item.type === 'chart' && ((_a = item.chart) === null || _a === void 0 ? void 0 : _a.mermaid)) {
+            core.summary.addRaw('\n');
             core.summary.addCodeBlock(item.chart.mermaid, 'mermaid');
+            core.summary.addRaw('\n');
         }
         else if (item.type === 'text' && item.content) {
-            core.summary.addRaw(item.content + '\n');
+            core.summary.addRaw(item.content + '\n\n');
         }
         else if (item.type === 'table' && item.content) {
-            core.summary.addRaw(item.content + '\n');
+            core.summary.addRaw(item.content + '\n\n');
         }
     }
 }

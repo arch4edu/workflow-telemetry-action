@@ -63,13 +63,15 @@ async function getCurrentJob(): Promise<WorkflowJobType | null> {
 function renderReportItems(items: ReportItem[]): void {
   for (const item of items) {
     if (item.type === 'heading' && item.content) {
-      core.summary.addRaw(item.content + '\n')
+      core.summary.addRaw('\n' + item.content + '\n\n')
     } else if (item.type === 'chart' && item.chart?.mermaid) {
+      core.summary.addRaw('\n')
       core.summary.addCodeBlock(item.chart.mermaid, 'mermaid')
+      core.summary.addRaw('\n')
     } else if (item.type === 'text' && item.content) {
-      core.summary.addRaw(item.content + '\n')
+      core.summary.addRaw(item.content + '\n\n')
     } else if (item.type === 'table' && item.content) {
-      core.summary.addRaw(item.content + '\n')
+      core.summary.addRaw(item.content + '\n\n')
     }
   }
 }

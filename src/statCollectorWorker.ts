@@ -145,7 +145,7 @@ function collectDiskSizeStats(
       if (!root) return
       const diskSizeStats: DiskSizeStats = {
         time: statTime,
-        availableSizeMb: Math.floor((root.size - root.used) / 1024 / 1024),
+        availableSizeMb: Math.floor(root.available / 1024 / 1024),
         usedSizeMb: Math.floor(root.used / 1024 / 1024)
       }
       diskSizeStatsHistogram.push(diskSizeStats)
