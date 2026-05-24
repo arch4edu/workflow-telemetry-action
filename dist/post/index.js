@@ -1,4 +1,4 @@
-require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 7351:
@@ -38305,12 +38305,12 @@ function reportAll(currentJob, stepTracerContent, statCollectorItems) {
         logger.debug(`Commit: ${commit}`);
         const commitUrl = `https://github.com/${repo.owner}/${repo.repo}/commit/${commit}`;
         logger.debug(`Commit url: ${commitUrl}`);
-        const info = `Workflow telemetry for commit [${commit}](${commitUrl})\n` +
+        const info = `Workflow telemetry for commit [${commit}](${commitUrl})\n\n` +
             `You can access workflow job details [here](${jobUrl})`;
         const jobSummary = core.getInput('job_summary');
         if ('true' === jobSummary) {
             core.summary.addHeading(title, 2);
-            core.summary.addRaw(info + '\n');
+            core.summary.addRaw(info + '\n\n');
             if (statCollectorItems) {
                 renderReportItems(statCollectorItems);
             }
@@ -45132,4 +45132,3 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=index.js.map

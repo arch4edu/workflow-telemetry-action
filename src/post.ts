@@ -99,13 +99,13 @@ async function reportAll(
   logger.debug(`Commit url: ${commitUrl}`)
 
   const info =
-    `Workflow telemetry for commit [${commit}](${commitUrl})\n` +
+    `Workflow telemetry for commit [${commit}](${commitUrl})\n\n` +
     `You can access workflow job details [here](${jobUrl})`
 
   const jobSummary: string = core.getInput('job_summary')
   if ('true' === jobSummary) {
     core.summary.addHeading(title, 2)
-    core.summary.addRaw(info + '\n')
+    core.summary.addRaw(info + '\n\n')
     if (statCollectorItems) {
       renderReportItems(statCollectorItems)
     }
