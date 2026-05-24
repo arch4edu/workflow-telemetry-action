@@ -38051,8 +38051,8 @@ function generateChart(title, yLabel, series, options) {
     }
     const allPoints = series[0].points;
     const total = Math.min(...series.map(s => s.points.length));
-    // Downsample to at most 32 evenly-spaced points (including first and last)
-    const maxPoints = 32;
+    // Downsample to at most 40 evenly-spaced points (including first and last)
+    const maxPoints = 40;
     let indices;
     if (total <= maxPoints) {
         indices = Array.from({ length: total }, (_, i) => i);
@@ -38088,7 +38088,10 @@ function generateChart(title, yLabel, series, options) {
         if (showAtStep.has(i)) {
             return `"${formatTime(allPoints[idx].x)}"`;
         }
-        return `"${'_'.repeat(hiddenCount++)}"`;
+        // Alternating pattern: odd positions space, even positions underscore
+        const len = hiddenCount++;
+        const chars = Array.from({ length: len }, (_, k) => (k % 2 === 0 ? ' ' : '_'));
+        return `"${chars.join('')}"`;
     });
     // Y-axis with optional fixed range
     const yAxisRange = (options === null || options === void 0 ? void 0 : options.yMax) ? `0 --> ${options.yMax}` : '';
