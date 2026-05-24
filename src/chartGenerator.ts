@@ -72,10 +72,10 @@ export function generateChart(
     if (showAtStep.has(i)) {
       return `"${formatRelativeTime(allPoints[idx].x, startTime)}"`
     }
-    // Alternating pattern: odd positions space, even positions underscore
-    const len = hiddenCount++
-    const chars = Array.from({ length: len }, (_, k) => (k % 2 === 0 ? ' ' : '_'))
-    return `"${chars.join('')}"`
+    // Pattern: " ", "__", "_ _", "_  _", "_   _", ...
+    const n = hiddenCount++
+    if (n === 1) return `" "`
+    return `"_${' '.repeat(n - 2)}_"`
   })
 
   // Y-axis with optional fixed range
