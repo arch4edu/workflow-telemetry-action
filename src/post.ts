@@ -104,8 +104,7 @@ async function reportAll(
 
   const jobSummary: string = core.getInput('job_summary')
   if ('true' === jobSummary) {
-    core.summary.addHeading(title, 2)
-    core.summary.addRaw(info + '\n\n')
+    core.summary.addRaw(`## ${title}\n\n${info}\n\n`)
     if (statCollectorItems) {
       renderReportItems(statCollectorItems)
     }
