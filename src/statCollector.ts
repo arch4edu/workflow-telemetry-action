@@ -105,9 +105,11 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
 
   const items: ReportItem[] = []
   if (mainChart) {
+    items.push({ type: 'heading', content: '### System Metrics' })
     items.push({ type: 'chart', chart: mainChart })
   }
   if (ioChart) {
+    items.push({ type: 'heading', content: '### IO Metrics' })
     items.push({ type: 'chart', chart: ioChart })
   }
 
