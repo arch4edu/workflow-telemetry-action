@@ -38456,8 +38456,10 @@ function reportWorkflowMetrics() {
             seriesList.push({ label: 'Disk', points: diskPercentX });
             colorList.push('#00aa00');
         }
+        const totalMemGb = (totalMemoryMb / 1024).toFixed(1);
+        const totalDiskGb = (totalDiskMb / 1024).toFixed(1);
         const mainChart = seriesList.length > 0
-            ? (0, chartGenerator_1.generateChart)('System (%) 🔴CPU 🔵Mem 🟢Disk', 'Percentage', seriesList, { yMax: 100, colors: colorList })
+            ? (0, chartGenerator_1.generateChart)(`System (%) CPU×${cpuCount} Mem${totalMemGb}GB Disk${totalDiskGb}GB 🔴CPU 🔵Mem 🟢Disk`, 'Percentage', seriesList, { yMax: 100, colors: colorList })
             : null;
         // Combined IO chart: Network + Disk
         const ioSeriesList = [];
@@ -38483,14 +38485,9 @@ function reportWorkflowMetrics() {
             : null;
         const items = [];
         if (mainChart) {
-            items.push({ type: 'heading', content: '### System Metrics' });
-            const totalMemGb = (totalMemoryMb / 1024).toFixed(1);
-            const totalDiskGb = (totalDiskMb / 1024).toFixed(1);
-            items.push({ type: 'text', content: `CPU Cores: **${cpuCount}** | Total Memory: **${totalMemGb} GB** | Total Disk: **${totalDiskGb} GB**` });
             items.push({ type: 'chart', chart: mainChart });
         }
         if (ioChart) {
-            items.push({ type: 'heading', content: '### IO Metrics' });
             items.push({ type: 'chart', chart: ioChart });
         }
         return items;
