@@ -38299,7 +38299,7 @@ function reportAll(currentJob, stepTracerContent, statCollectorItems) {
         logger.debug(`Workflow - Job: ${workflow} - ${job}`);
         const jobUrl = `https://github.com/${repo.owner}/${repo.repo}/runs/${currentJob.id}?check_suite_focus=true`;
         logger.debug(`Job url: ${jobUrl}`);
-        const title = `## Workflow Telemetry - ${workflow} / ${currentJob.name}`;
+        const title = `Workflow Telemetry - ${workflow} / ${currentJob.name}`;
         logger.debug(`Title: ${title}`);
         const commit = (pull_request && pull_request.head && pull_request.head.sha) || sha;
         logger.debug(`Commit: ${commit}`);
@@ -38322,7 +38322,7 @@ function reportAll(currentJob, stepTracerContent, statCollectorItems) {
                 logger.debug(`Found Pull Request: ${JSON.stringify(pull_request)}`);
             }
             // For PR comments, skip charts (they don't render without a URL)
-            let prContent = title + '\n' + info + '\n';
+            let prContent = '## ' + title + '\n' + info + '\n';
             if (stepTracerContent) {
                 prContent += stepTracerContent + '\n';
             }
