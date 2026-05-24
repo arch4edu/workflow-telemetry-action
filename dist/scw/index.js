@@ -40775,15 +40775,13 @@ function collectDiskSizeStats(statTime, timeInterval) {
     return systeminformation_1.default
         .fsSize()
         .then((data) => {
-        let totalSize = 0, usedSize = 0;
-        for (let fsd of data) {
-            totalSize += fsd.size;
-            usedSize += fsd.used;
-        }
+        const root = data.find(fsd => fsd.mount === '/');
+        if (!root)
+            return;
         const diskSizeStats = {
             time: statTime,
-            availableSizeMb: Math.floor((totalSize - usedSize) / 1024 / 1024),
-            usedSizeMb: Math.floor(usedSize / 1024 / 1024)
+            availableSizeMb: Math.floor((root.size - root.used) / 1024 / 1024),
+            usedSizeMb: Math.floor(root.used / 1024 / 1024)
         };
         diskSizeStatsHistogram.push(diskSizeStats);
     })

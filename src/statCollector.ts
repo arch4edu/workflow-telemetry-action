@@ -60,44 +60,44 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const seriesList: Array<{ label: string; points: ProcessedStats[] }> = []
   const colorList: string[] = []
   if (cpuTotalLoad && cpuTotalLoad.length) {
-    seriesList.push({ label: '🔴 CPU', points: cpuTotalLoad })
+    seriesList.push({ label: 'CPU', points: cpuTotalLoad })
     colorList.push('#ff0000')
   }
   if (memoryPercentX && memoryPercentX.length) {
-    seriesList.push({ label: '🔵 Memory', points: memoryPercentX })
+    seriesList.push({ label: 'Memory', points: memoryPercentX })
     colorList.push('#0000ff')
   }
   if (diskPercentX && diskPercentX.length) {
-    seriesList.push({ label: '🟢 Disk', points: diskPercentX })
+    seriesList.push({ label: 'Disk', points: diskPercentX })
     colorList.push('#00aa00')
   }
 
   const mainChart = seriesList.length > 0
-    ? generateChart('System Usage (%)', 'Percentage', seriesList, { yMax: 100, colors: colorList })
+    ? generateChart('System (%) 🔴CPU 🔵Mem 🟢Disk', 'Percentage', seriesList, { yMax: 100, colors: colorList })
     : null
 
   // Combined IO chart: Network + Disk
   const ioSeriesList: Array<{ label: string; points: ProcessedStats[] }> = []
   const ioColorList: string[] = []
   if (networkReadX && networkReadX.length) {
-    ioSeriesList.push({ label: '🔴 Net Read', points: networkReadX })
+    ioSeriesList.push({ label: 'Net Read', points: networkReadX })
     ioColorList.push('#ff0000')
   }
   if (networkWriteX && networkWriteX.length) {
-    ioSeriesList.push({ label: '🔵 Net Write', points: networkWriteX })
+    ioSeriesList.push({ label: 'Net Write', points: networkWriteX })
     ioColorList.push('#0000ff')
   }
   if (diskReadX && diskReadX.length) {
-    ioSeriesList.push({ label: '🟠 Disk Read', points: diskReadX })
+    ioSeriesList.push({ label: 'Disk Read', points: diskReadX })
     ioColorList.push('#ff8800')
   }
   if (diskWriteX && diskWriteX.length) {
-    ioSeriesList.push({ label: '🟢 Disk Write', points: diskWriteX })
+    ioSeriesList.push({ label: 'Disk Write', points: diskWriteX })
     ioColorList.push('#00aa00')
   }
 
   const ioChart = ioSeriesList.length > 0
-    ? generateChart('I/O (MB)', 'MB', ioSeriesList, { colors: ioColorList })
+    ? generateChart('I/O (MB) 🔴NetR 🔵NetW 🟠DiskR 🟢DiskW', 'MB', ioSeriesList, { colors: ioColorList })
     : null
 
   const items: ReportItem[] = []
