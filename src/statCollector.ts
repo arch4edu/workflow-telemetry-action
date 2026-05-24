@@ -76,7 +76,7 @@ async function reportWorkflowMetrics(): Promise<ReportItem[]> {
   const totalDiskGb = (totalDiskMb / 1024).toFixed(1)
 
   const mainChart = seriesList.length > 0
-    ? generateChart(`System (%) CPU×${cpuCount} Mem${totalMemGb}GB Disk${totalDiskGb}GB 🔴CPU 🔵Mem 🟢Disk`, 'Percentage', seriesList, { yMax: 100, colors: colorList })
+    ? generateChart(`🔴CPU(×${cpuCount}) 🔵Mem(${totalMemGb}G) 🟢Disk(${totalDiskGb}G)`, 'Percentage', seriesList, { yMax: 100, colors: colorList })
     : null
 
   // Combined IO chart: Network + Disk

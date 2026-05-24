@@ -38459,7 +38459,7 @@ function reportWorkflowMetrics() {
         const totalMemGb = (totalMemoryMb / 1024).toFixed(1);
         const totalDiskGb = (totalDiskMb / 1024).toFixed(1);
         const mainChart = seriesList.length > 0
-            ? (0, chartGenerator_1.generateChart)(`System (%) CPU×${cpuCount} Mem${totalMemGb}GB Disk${totalDiskGb}GB 🔴CPU 🔵Mem 🟢Disk`, 'Percentage', seriesList, { yMax: 100, colors: colorList })
+            ? (0, chartGenerator_1.generateChart)(`🔴CPU(×${cpuCount}) 🔵Mem(${totalMemGb}G) 🟢Disk(${totalDiskGb}G)`, 'Percentage', seriesList, { yMax: 100, colors: colorList })
             : null;
         // Combined IO chart: Network + Disk
         const ioSeriesList = [];
